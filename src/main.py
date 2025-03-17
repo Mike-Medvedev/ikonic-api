@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 from pydantic import BaseModel
@@ -82,3 +82,15 @@ def login(user: User):
         return {"message": "Login Successful", "user_id": user_id}
     else:
         raise HTTPException(status_code=401, detail="Account not found")
+
+
+@app.get('/profile/{user_id}')
+def profile(user_id: str):
+    return {"profile_data": {"firstname": "michael", "lastname": "medvedev"}}
+
+
+@app.post('/create-trip')
+async def create_trip(request: Request):
+    print(request.headers)
+    data = await request.json()
+    print(data)
