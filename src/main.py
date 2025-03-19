@@ -51,6 +51,13 @@ cursor = ikonic_db_connection.cursor()
 # res = cursor.execute(
 #     "SELECT * FROM users")
 # print(res.fetchall())
+# updates = [
+#     ('12038587135', '2038587135'),
+#     ('17324926329', '7324926329')
+# ]
+# cursor.executemany("""UPDATE users
+#                SET phone_number = ?
+#                WHERE phone_number = ?""", updates)
 # ikonic_db_connection.commit()
 
 
@@ -95,6 +102,24 @@ async def profile(user_id: str):
         """ SELECT firstname, lastname, phone_number FROM users WHERE user_id = ? """, (user_id, ))
     row = res.fetchone()
     return {"profile_data": {"firstname": row[0], "lastname": row[1], "phone_number": row[2]}}
+
+
+@app.get('/users')
+def get_users():
+    try:
+        row = cursor.execute("SELECT * FROM users")
+        users = row.fetchall()
+        list_of_users = [
+            {
+                "user_id": user[0],
+                "firstname": user[3],
+                "lastname": user[4],
+                "phone_number": user[5]
+            } for user in users
+        ]
+        return {"users": list_of_users}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"{e}") from e
 
 
 @app.post('/create-trip')
@@ -164,14 +189,15 @@ def delete_post(trip_id: str):
 @app.post('/invite')
 async def invite_user(request: Request):
     body = await request.json()
-    user_id = body["user_id"]
+    user = body["user"]
+    phone_number: str = user["phone_number"]
     deep_link = body["deep_link"]
-    print(user_id, deep_link)
-    if not user_id:
+    print(user, deep_link)
+    if not user or not phone_number:
         raise HTTPException(
-            status_code=400, detail="Please provide a user_id when inviting")
+            status_code=400, detail="Please provide a user when inviting")
     message = SmsMessage(
-        to=os.getenv("TO_NUMBER"),
+        to=phone_number,
         from_=os.getenv("VONAGE_BRAND_NAME"),
         text=f"You Have been invited to a trip, click here to RSVP, {deep_link}",
     )
