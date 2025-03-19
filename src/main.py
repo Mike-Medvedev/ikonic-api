@@ -58,6 +58,13 @@ cursor = ikonic_db_connection.cursor()
 # cursor.executemany("""UPDATE users
 #                SET phone_number = ?
 #                WHERE phone_number = ?""", updates)
+# res = cursor.execute("SELECT * FROM trips_users_mapping")
+# print(res.fetchall())
+# res3 = cursor.execute("SELECT * FROM trips")
+# print(res3.fetchall())
+# res2 = cursor.execute("SELECT * FROM users WHERE user_id = ?",
+#                       ("6556cf1c-88e7-4f6a-bff7-b8be7d546628", ))
+# print(res2.fetchone())
 # ikonic_db_connection.commit()
 
 
@@ -123,7 +130,7 @@ def get_users():
 
 
 @app.get('/invited-users/{selectedTrip}')
-def get_invited_users(selectedTrip: str):
+def get_invited_users(selectedTrip: int):
     if not selectedTrip:
         raise HTTPException(
             status_code=400, detail="Please provide a valid trip ID")
@@ -131,7 +138,7 @@ def get_invited_users(selectedTrip: str):
         rows = cursor.execute("""SELECT users.* FROM users
                              JOIN trips_users_mapping
                              ON users.user_id = trips_users_mapping.user_id
-                             WHERE trips_users_mapping.trip_id = ?""", (13, ))
+                             WHERE trips_users_mapping.trip_id = ?""", (selectedTrip, ))
         invited_users = rows.fetchall()
         print(f"HRE ARE THE TRIPS USERS MAPPING ROWS --> {invited_users}")
         list_of_users = [
@@ -235,10 +242,10 @@ async def invite_user(request: Request):
 @app.post('/rsvp')
 async def rsvp(request: Request):
     body = await request.json()
-    user_id = body["user_id"]
+    user_id = request.headers.get("authorization")
     trip_id = body["trip_id"]
     user_response = body["user_response"]
-    print(user_id, user_response)
+    print(user_id, trip_id, user_response)
     if not user_id or not trip_id or not user_response:
         raise HTTPException(
             status_code=400, detail="Please provide the correct payload when rsvping")
