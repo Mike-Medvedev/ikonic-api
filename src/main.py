@@ -46,7 +46,7 @@ cursor = ikonic_db_connection.cursor()
 # cursor.execute("DROP TABLE trips_users_mapping")
 # cursor.execute("""CREATE TABLE trips_users_mapping(trip_id, user_id, PRIMARY KEY (trip_id, user_id),
 #   FOREIGN KEY (trip_id) REFERENCES trips(id),
-#   FOREIGN KEY (user_id) REFERENCES users(id))""")
+#   FOREIGN KEY (user_id) REFERENCES users(user_id))""")
 
 # res = cursor.execute(
 #     "SELECT * FROM users")
@@ -119,6 +119,32 @@ def get_users():
         ]
         return {"users": list_of_users}
     except Exception as e:
+        raise HTTPException(status_code=400, detail=f"{e}") from e
+
+
+@app.get('/invited-users/{selectedTrip}')
+def get_invited_users(selectedTrip: str):
+    if not selectedTrip:
+        raise HTTPException(
+            status_code=400, detail="Please provide a valid trip ID")
+    try:
+        rows = cursor.execute("""SELECT users.* FROM users
+                             JOIN trips_users_mapping
+                             ON users.user_id = trips_users_mapping.user_id
+                             WHERE trips_users_mapping.trip_id = ?""", (13, ))
+        invited_users = rows.fetchall()
+        print(f"HRE ARE THE TRIPS USERS MAPPING ROWS --> {invited_users}")
+        list_of_users = [
+            {
+                "user_id": user[0],
+                "firstname": user[3],
+                "lastname": user[4],
+                "phone_number": user[5]
+            } for user in invited_users
+        ]
+        return {"invited_users": list_of_users}
+    except Exception as e:
+        print(e)
         raise HTTPException(status_code=400, detail=f"{e}") from e
 
 
