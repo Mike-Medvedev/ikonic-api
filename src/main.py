@@ -39,10 +39,15 @@ Login = [
 # cursor.execute("DROP TABLE users")
 # cursor.execute(
 #     """CREATE TABLE users(user_id, username, password, firstname, lastname, phone_number)""")
-# cursor.execute("DROP TABLE trips_users_mapping")
-# cursor.execute("""CREATE TABLE trips_users_mapping(trip_id, user_id, PRIMARY KEY (trip_id, user_id),
-#   FOREIGN KEY (trip_id) REFERENCES trips(id),
-#   FOREIGN KEY (user_id) REFERENCES users(user_id))""")
+# cursor.execute("""CREATE TABLE trips_users_mapping (
+#   trip_id INTEGER,
+#   user_id TEXT,
+#   rsvp TEXT,
+#   PRIMARY KEY (trip_id, user_id),
+#   FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+#   FOREIGN KEY (user_id) REFERENCES users(user_id)
+# );
+# """)
 
 # res = cursor.execute(
 #     "SELECT * FROM users")
@@ -64,7 +69,6 @@ Login = [
 # ikonic_db_connection = sqlite3.connect(
 #     'ikonic.db', check_same_thread=False)
 # cursor = ikonic_db_connection.cursor()
-
 # ikonic_db_connection.commit()
 
 
@@ -149,27 +153,44 @@ def get_invited_users(selectedTrip: int):
     ikonic_db_connection = sqlite3.connect(
         'ikonic.db', check_same_thread=False)
     cursor = ikonic_db_connection.cursor()
+    cursor.row_factory = sqlite3.Row
     if not selectedTrip:
         ikonic_db_connection.close()
         raise HTTPException(
             status_code=400, detail="Please provide a valid trip ID")
     try:
-        rows = cursor.execute("""SELECT users.* FROM users
-                             JOIN trips_users_mapping
-                             ON users.user_id = trips_users_mapping.user_id
-                             WHERE trips_users_mapping.trip_id = ?""", (selectedTrip, ))
+        rows = cursor.execute("""
+            SELECT users.*, trips_users_mapping.rsvp 
+            FROM users
+            JOIN trips_users_mapping ON users.user_id = trips_users_mapping.user_id
+            WHERE trips_users_mapping.trip_id = ?
+        """, (selectedTrip,))
+
         invited_users = rows.fetchall()
-        print(f"HRE ARE THE TRIPS USERS MAPPING ROWS --> {invited_users}")
-        list_of_users = [
-            {
-                "user_id": user[0],
-                "firstname": user[3],
-                "lastname": user[4],
-                "phone_number": user[5]
-            } for user in invited_users
-        ]
+        print(f"HERE ARE THE TRIPS USERS MAPPING ROWS --> {invited_users}")
+
+        rsvp_groups = {"going": [], "maybe": [], "not going": []}
+
+        for user in invited_users:
+            status = user["rsvp"]
+            if status in rsvp_groups:
+                rsvp_groups[status].append({
+                    "user_id": user["user_id"],
+                    "firstname": user["firstname"],
+                    "lastname": user["lastname"],
+                    "phone_number": user["phone_number"],
+                    "rsvp": status
+                })
+
         ikonic_db_connection.close()
-        return {"invited_users": list_of_users}
+
+        return {
+            "invited_users": {
+                "going": rsvp_groups["going"],
+                "maybe": rsvp_groups["maybe"],
+                "not_going": rsvp_groups["not going"]
+            }
+        }
     except Exception as e:
         print(e)
         ikonic_db_connection.close()
@@ -292,10 +313,11 @@ async def rsvp(request: Request):
                 status_code=400, detail="Please provide the correct payload when rsvping")
         cursor.execute(
             """
-        INSERT OR IGNORE INTO trips_users_mapping (trip_id, user_id)
-        VALUES (?, ?)
+            INSERT INTO trips_users_mapping (trip_id, user_id, rsvp)
+            VALUES (?, ?, ?)
+            ON CONFLICT(trip_id, user_id) DO UPDATE SET rsvp = excluded.rsvp;
         """,
-            (int(trip_id), user_id)
+            (int(trip_id), user_id, user_response)
         )
         ikonic_db_connection.commit()
         res = cursor.execute("SELECT * FROM trips_users_mapping")
