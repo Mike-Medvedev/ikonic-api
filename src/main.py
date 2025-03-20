@@ -33,10 +33,6 @@ Login = [
 ]
 
 
-ikonic_db_connection = sqlite3.connect('ikonic.db', check_same_thread=False)
-cursor = ikonic_db_connection.cursor()
-
-
 # cursor.execute(
 #     'CREATE TABLE trips(id INTEGER PRIMARY KEY AUTOINCREMENT, title, start_date, end_date, mountain)')
 # ikonic_db_connection.commit()
@@ -80,10 +76,14 @@ class User(BaseModel):
 
 @app.post('/login')
 async def login(user: User):
+    ikonic_db_connection = sqlite3.connect(
+        'ikonic.db', check_same_thread=False)
+    cursor = ikonic_db_connection.cursor()
     username = user.username
     password = user.password
 
     if not username or not password:
+        ikonic_db_connection.close()
         raise HTTPException(
             status_code=404, detail="Username and password are required")
 
@@ -98,22 +98,31 @@ async def login(user: User):
                 status_code=401,
                 detail="Incorrect username or password"
             )
+        ikonic_db_connection.close()
         return {"message": "Login Successful", "user_id": user_id}
     else:
+        ikonic_db_connection.close()
         raise HTTPException(status_code=401, detail="Account not found")
 
 
 @app.get('/profile/{user_id}')
 async def profile(user_id: str):
+    ikonic_db_connection = sqlite3.connect(
+        'ikonic.db', check_same_thread=False)
+    cursor = ikonic_db_connection.cursor()
     res = cursor.execute(
         """ SELECT firstname, lastname, phone_number FROM users WHERE user_id = ? """, (user_id, ))
     row = res.fetchone()
+    ikonic_db_connection.close()
     return {"profile_data": {"firstname": row[0], "lastname": row[1], "phone_number": row[2]}}
 
 
 @app.get('/users')
 def get_users():
     try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
         row = cursor.execute("SELECT * FROM users")
         users = row.fetchall()
         list_of_users = [
@@ -124,14 +133,20 @@ def get_users():
                 "phone_number": user[5]
             } for user in users
         ]
+        ikonic_db_connection.close()
         return {"users": list_of_users}
     except Exception as e:
+        ikonic_db_connection.close()
         raise HTTPException(status_code=400, detail=f"{e}") from e
 
 
 @app.get('/invited-users/{selectedTrip}')
 def get_invited_users(selectedTrip: int):
+    ikonic_db_connection = sqlite3.connect(
+        'ikonic.db', check_same_thread=False)
+    cursor = ikonic_db_connection.cursor()
     if not selectedTrip:
+        ikonic_db_connection.close()
         raise HTTPException(
             status_code=400, detail="Please provide a valid trip ID")
     try:
@@ -149,14 +164,19 @@ def get_invited_users(selectedTrip: int):
                 "phone_number": user[5]
             } for user in invited_users
         ]
+        ikonic_db_connection.close()
         return {"invited_users": list_of_users}
     except Exception as e:
         print(e)
+        ikonic_db_connection.close()
         raise HTTPException(status_code=400, detail=f"{e}") from e
 
 
 @app.post('/create-trip')
 async def create_trip(request: Request):
+    ikonic_db_connection = sqlite3.connect(
+        'ikonic.db', check_same_thread=False)
+    cursor = ikonic_db_connection.cursor()
     user_id = request.headers.get("authorization")
     if not user_id:
         raise HTTPException(
@@ -168,6 +188,7 @@ async def create_trip(request: Request):
         start_date = data["startDate"]
         end_date = data["endDate"]
     except KeyError as e:
+        ikonic_db_connection.close()
         raise HTTPException(
             status_code=400, detail=f"Missing field in request data: {e}") from e
 
@@ -182,21 +203,26 @@ async def create_trip(request: Request):
     )
     ikonic_db_connection.commit()
     print(data)
-
+    ikonic_db_connection.close()
     return {"message": "Trip created successfully", "trip_id": trip_id}
 
 
 @app.get('/get-trips')
 async def get_trips(request: Request):
+    ikonic_db_connection = sqlite3.connect(
+        'ikonic.db', check_same_thread=False)
+    cursor = ikonic_db_connection.cursor()
     headers = request.headers
     user_id = headers.get("authorization")
     if not user_id:
+        ikonic_db_connection.close()
         raise HTTPException(
             status_code=401, detail="Missing Authorization Header")
     res = cursor.execute("""SELECT trips.* FROM trips JOIN trips_users_mapping ON trips.id
                          = trips_users_mapping.trip_id WHERE trips_users_mapping.user_id = ?""", (user_id, ))
     row = res.fetchall()
     print(row)
+    ikonic_db_connection.close()
     return {"trips": [
         {
             "id": trip[0],
@@ -212,21 +238,30 @@ async def get_trips(request: Request):
 
 @app.delete('/delete-trip/{trip_id}')
 def delete_post(trip_id: str):
+    ikonic_db_connection = sqlite3.connect(
+        'ikonic.db', check_same_thread=False)
+    cursor = ikonic_db_connection.cursor()
     if not trip_id:
+        ikonic_db_connection.close()
         raise HTTPException(
             status_code=400, detail="Please select a valid trip id")
     cursor.execute("DELETE FROM trips where id = ?", (trip_id, ))
     ikonic_db_connection.commit()
+    ikonic_db_connection.close()
 
 
 @app.post('/invite')
 async def invite_user(request: Request):
+    ikonic_db_connection = sqlite3.connect(
+        'ikonic.db', check_same_thread=False)
+    cursor = ikonic_db_connection.cursor()
     body = await request.json()
     user = body["user"]
     phone_number: str = user["phone_number"]
     deep_link = body["deep_link"]
     print(user, deep_link)
     if not user or not phone_number:
+        ikonic_db_connection.close()
         raise HTTPException(
             status_code=400, detail="Please provide a user when inviting")
     message = SmsMessage(
@@ -237,16 +272,22 @@ async def invite_user(request: Request):
 
     response: SmsResponse = client.sms.send(message)
     print(response)
+    ikonic_db_connection.close()
+    return {"response": "success"}
 
 
 @app.post('/rsvp')
 async def rsvp(request: Request):
+    ikonic_db_connection = sqlite3.connect(
+        'ikonic.db', check_same_thread=False)
+    cursor = ikonic_db_connection.cursor()
     body = await request.json()
     user_id = request.headers.get("authorization")
     trip_id = body["trip_id"]
     user_response = body["user_response"]
     print(user_id, trip_id, user_response)
     if not user_id or not trip_id or not user_response:
+        ikonic_db_connection.close()
         raise HTTPException(
             status_code=400, detail="Please provide the correct payload when rsvping")
     cursor.execute(
@@ -260,3 +301,4 @@ async def rsvp(request: Request):
     res = cursor.execute("SELECT * FROM trips_users_mapping")
 
     print(res.fetchall())
+    ikonic_db_connection.close()
