@@ -60,7 +60,11 @@ Login = [
 # print(res3.fetchall())
 # res2 = cursor.execute("SELECT * FROM users WHERE user_id = ?",
 #                       ("6556cf1c-88e7-4f6a-bff7-b8be7d546628", ))
-# print(res2.fetchone())
+# # print(res2.fetchone())
+# ikonic_db_connection = sqlite3.connect(
+#     'ikonic.db', check_same_thread=False)
+# cursor = ikonic_db_connection.cursor()
+
 # ikonic_db_connection.commit()
 
 
@@ -252,16 +256,12 @@ def delete_post(trip_id: str):
 
 @app.post('/invite')
 async def invite_user(request: Request):
-    ikonic_db_connection = sqlite3.connect(
-        'ikonic.db', check_same_thread=False)
-    cursor = ikonic_db_connection.cursor()
     body = await request.json()
     user = body["user"]
     phone_number: str = user["phone_number"]
     deep_link = body["deep_link"]
     print(user, deep_link)
     if not user or not phone_number:
-        ikonic_db_connection.close()
         raise HTTPException(
             status_code=400, detail="Please provide a user when inviting")
     message = SmsMessage(
@@ -272,33 +272,38 @@ async def invite_user(request: Request):
 
     response: SmsResponse = client.sms.send(message)
     print(response)
-    ikonic_db_connection.close()
     return {"response": "success"}
 
 
 @app.post('/rsvp')
 async def rsvp(request: Request):
-    ikonic_db_connection = sqlite3.connect(
-        'ikonic.db', check_same_thread=False)
-    cursor = ikonic_db_connection.cursor()
-    body = await request.json()
-    user_id = request.headers.get("authorization")
-    trip_id = body["trip_id"]
-    user_response = body["user_response"]
-    print(user_id, trip_id, user_response)
-    if not user_id or not trip_id or not user_response:
-        ikonic_db_connection.close()
-        raise HTTPException(
-            status_code=400, detail="Please provide the correct payload when rsvping")
-    cursor.execute(
-        """
-    INSERT OR IGNORE INTO trips_users_mapping (trip_id, user_id)
-    VALUES (?, ?)
-    """,
-        (trip_id, user_id)
-    )
-    ikonic_db_connection.commit()
-    res = cursor.execute("SELECT * FROM trips_users_mapping")
+    try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
+        body = await request.json()
+        user_id = request.headers.get("authorization")
+        trip_id = body["trip_id"]
+        user_response = body["user_response"]
+        print(user_id, trip_id, user_response)
+        if not user_id or not trip_id or not user_response:
+            ikonic_db_connection.close()
+            raise HTTPException(
+                status_code=400, detail="Please provide the correct payload when rsvping")
+        cursor.execute(
+            """
+        INSERT OR IGNORE INTO trips_users_mapping (trip_id, user_id)
+        VALUES (?, ?)
+        """,
+            (int(trip_id), user_id)
+        )
+        ikonic_db_connection.commit()
+        res = cursor.execute("SELECT * FROM trips_users_mapping")
 
-    print(res.fetchall())
-    ikonic_db_connection.close()
+        print(res.fetchall())
+        ikonic_db_connection.close()
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=400, detail="RSVP Error") from e
+    finally:
+        ikonic_db_connection.close()
