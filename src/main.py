@@ -1,3 +1,4 @@
+from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
@@ -48,6 +49,22 @@ Login = [
 #   FOREIGN KEY (user_id) REFERENCES users(user_id)
 # );
 # """)
+# cursor.execute("""CREATE TABLE cars (
+#   id INTEGER PRIMARY KEY AUTOINCREMENT,
+#   trip_id INTEGER,
+#   owner TEXT,
+#   seat_count INTEGER,
+#   FOREIGN KEY (trip_id) REFERENCES trips(id)
+#   FOREIGN KEY (owner) REFERENCES users(user_id)
+# );""")
+# cursor.execute("""CREATE TABLE car_passengers (
+#   car_id INTEGER,
+#   user_id INTEGER,
+#   PRIMARY KEY (car_id, user_id),
+#   FOREIGN KEY (car_id) REFERENCES cars(id) ON DELETE CASCADE,
+#   FOREIGN KEY (user_id) REFERENCES users(user_id)
+# );""")
+#
 
 # res = cursor.execute(
 #     "SELECT * FROM users")
@@ -69,6 +86,7 @@ Login = [
 # ikonic_db_connection = sqlite3.connect(
 #     'ikonic.db', check_same_thread=False)
 # cursor = ikonic_db_connection.cursor()
+
 # ikonic_db_connection.commit()
 
 
@@ -78,8 +96,12 @@ def index():
 
 
 class User(BaseModel):
-    username: str
-    password: str
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
+    phone_number: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    user_id: Optional[str] = None
 
 
 @app.post('/login')
@@ -108,9 +130,8 @@ async def login(user: User):
             )
         ikonic_db_connection.close()
         return {"message": "Login Successful", "user_id": user_id}
-    else:
-        ikonic_db_connection.close()
-        raise HTTPException(status_code=401, detail="Account not found")
+    ikonic_db_connection.close()
+    raise HTTPException(status_code=401, detail="Account not found")
 
 
 @app.get('/profile/{user_id}')
@@ -119,10 +140,10 @@ async def profile(user_id: str):
         'ikonic.db', check_same_thread=False)
     cursor = ikonic_db_connection.cursor()
     res = cursor.execute(
-        """ SELECT firstname, lastname, phone_number FROM users WHERE user_id = ? """, (user_id, ))
+        """ SELECT user_id, firstname, lastname, phone_number FROM users WHERE user_id = ? """, (user_id, ))
     row = res.fetchone()
     ikonic_db_connection.close()
-    return {"profile_data": {"firstname": row[0], "lastname": row[1], "phone_number": row[2]}}
+    return {"profile_data": {"user_id": row[0], "firstname": row[1], "lastname": row[2], "phone_number": row[3]}}
 
 
 @app.get('/users')
@@ -167,7 +188,8 @@ def get_invited_users(selectedTrip: int):
         """, (selectedTrip,))
 
         invited_users = rows.fetchall()
-        print(f"HERE ARE THE TRIPS USERS MAPPING ROWS --> {invited_users}")
+        for row in invited_users:
+            print(dict(row))
 
         rsvp_groups = {"going": [], "maybe": [], "not going": []}
 
@@ -327,5 +349,73 @@ async def rsvp(request: Request):
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail="RSVP Error") from e
+    finally:
+        ikonic_db_connection.close()
+
+
+@app.get('/{trip_id}/cars')
+def get_cars_for_trip(trip_id: int):
+    try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
+        cursor.row_factory = sqlite3.Row
+        rows = cursor.execute(
+            "SELECT * FROM cars WHERE trip_id = ?", (trip_id, ))
+        res = rows.fetchall()
+        cars = []
+        for row in res:
+            cars.append(row)
+            print(dict(row))
+        print(res)
+        return cars
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=e) from e
+    finally:
+        ikonic_db_connection.close()
+
+
+class Car(BaseModel):
+    car_id: int
+    owner: User
+    passengers: List[User]
+    seatCount: int
+
+
+class NewCar(BaseModel):
+    owner: User
+    seatCount: int
+
+
+@app.post('/{trip_id}/create-car')
+def create_car(trip_id: int, car: NewCar):
+    try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
+        print(car.owner)
+        cursor.execute("INSERT INTO cars (trip_id, owner, seat_count) VALUES (?, ?, ?)",
+                       (trip_id, car.owner.user_id, car.seatCount))
+        generated_id = cursor.lastrowid
+        new_car: Car = {"car_id": generated_id, "owner": car.owner,
+                        "passengers": [], "seat_count": car.seatCount}
+        ikonic_db_connection.commit()
+        return new_car
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=e) from e
+    finally:
+        ikonic_db_connection.close()
+
+
+@app.delete('/{car_id}/delete-car')
+def delete_car_from_trip(car_id: int):
+    try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
+        cursor.execute("DELETE FROM cars WHERE id = ?", (car_id, ))
+        ikonic_db_connection.commit()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=e) from e
     finally:
         ikonic_db_connection.close()
