@@ -191,7 +191,7 @@ def get_invited_users(selectedTrip: int):
         for row in invited_users:
             print(dict(row))
 
-        rsvp_groups = {"going": [], "maybe": [], "not going": []}
+        rsvp_groups = {"going": [], "maybe": [], "not_going": []}
 
         for user in invited_users:
             status = user["rsvp"]
@@ -210,7 +210,7 @@ def get_invited_users(selectedTrip: int):
             "invited_users": {
                 "going": rsvp_groups["going"],
                 "maybe": rsvp_groups["maybe"],
-                "not_going": rsvp_groups["not going"]
+                "not_going": rsvp_groups["not_going"]
             }
         }
     except Exception as e:
@@ -414,6 +414,22 @@ def delete_car_from_trip(car_id: int):
             'ikonic.db', check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
         cursor.execute("DELETE FROM cars WHERE id = ?", (car_id, ))
+        ikonic_db_connection.commit()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=e) from e
+    finally:
+        ikonic_db_connection.close()
+
+
+@app.post('/{car_id}/{user_id}/add-passenger')
+def add_passenger(car_id: int, user_id: str):
+    """Adds User to car_passengers table which has a car id referencing a car"""
+    try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
+        cursor.execute(
+            "INSERT INTO car_passengers (car_id, user_id)", (car_id, user_id))
         ikonic_db_connection.commit()
     except Exception as e:
         raise HTTPException(status_code=400, detail=e) from e
