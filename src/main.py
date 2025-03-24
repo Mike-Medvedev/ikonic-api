@@ -60,11 +60,12 @@ Login = [
 # cursor.execute("""CREATE TABLE car_passengers (
 #   car_id INTEGER,
 #   user_id INTEGER,
-#   PRIMARY KEY (car_id, user_id),
+#   seat_position INTEGER,
+#   PRIMARY KEY (car_id, seat_position),
 #   FOREIGN KEY (car_id) REFERENCES cars(id) ON DELETE CASCADE,
 #   FOREIGN KEY (user_id) REFERENCES users(user_id)
-# );""")
-#
+# );
+# """)
 
 # res = cursor.execute(
 #     "SELECT * FROM users")
@@ -86,7 +87,8 @@ Login = [
 # ikonic_db_connection = sqlite3.connect(
 #     'ikonic.db', check_same_thread=False)
 # cursor = ikonic_db_connection.cursor()
-
+# res = cursor.execute("SELECT * FROM cars")
+# print(res.fetchall())
 # ikonic_db_connection.commit()
 
 
@@ -360,15 +362,49 @@ def get_cars_for_trip(trip_id: int):
             'ikonic.db', check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
         cursor.row_factory = sqlite3.Row
-        rows = cursor.execute(
-            "SELECT * FROM cars WHERE trip_id = ?", (trip_id, ))
-        res = rows.fetchall()
-        cars = []
-        for row in res:
-            cars.append(row)
-            print(dict(row))
-        print(res)
-        return cars
+        # rows = cursor.execute(
+        #         """
+        #         SELECT
+        #             cars.id AS car_id,
+        #             cars.trip_id,
+        #             cars.owner,
+        #             cars.seat_count,
+        #             car_passengers.seat_position,
+        #             users.user_id,
+        #             users.firstname,
+        #             users.lastname,
+        #             users.phone_number
+        #         FROM cars
+        #         LEFT JOIN car_passengers ON cars.id = car_passengers.car_id
+        #         LEFT JOIN users ON car_passengers.user_id = users.user_id
+        #         WHERE cars.trip_id = ?
+        #         """, (trip_id, )
+# )
+        rows = cursor.execute("""
+                              SELECT cars.id, cars.trip_id, cars.owner, cars.seat_count
+                              FROM cars
+                              WHERE cars.trip_id = ?""", (trip_id, ))
+        fetched_cars = rows.fetchall()
+        cars = [dict(car) for car in fetched_cars]
+        retrieved_cars = []
+        for car in cars:
+            print(f"PRINTING EACH CAR {car}")
+            res = cursor.execute("""
+                        SELECT
+                            car_passengers.seat_position,
+                            users.user_id, 
+                            users.firstname, 
+                            users.lastname, 
+                            users.phone_number
+                        FROM car_passengers
+                        JOIN users ON car_passengers.user_id = users.user_id
+                        WHERE car_passengers.car_id = ?""", (car["id"], ))
+            passengers = res.fetchall()
+            print(passengers)
+            result = {**car, "passengers": passengers}
+            retrieved_cars.append(result)
+            print(result)
+        return retrieved_cars
     except Exception as e:
         raise HTTPException(status_code=400, detail=e) from e
     finally:
@@ -393,7 +429,7 @@ def create_car(trip_id: int, car: NewCar):
         ikonic_db_connection = sqlite3.connect(
             'ikonic.db', check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
-        print(car.owner)
+        # print(car.owner)
         cursor.execute("INSERT INTO cars (trip_id, owner, seat_count) VALUES (?, ?, ?)",
                        (trip_id, car.owner.user_id, car.seatCount))
         generated_id = cursor.lastrowid
@@ -421,15 +457,15 @@ def delete_car_from_trip(car_id: int):
         ikonic_db_connection.close()
 
 
-@app.post('/{car_id}/{user_id}/add-passenger')
-def add_passenger(car_id: int, user_id: str):
-    """Adds User to car_passengers table which has a car id referencing a car"""
+@app.post('/{car_id}/{user_id}/{seat_position}/add-passenger')
+def add_passenger(car_id: int, user_id: str, seat_position: int):
+    """Adds a User to a car as a passenger in a specific seat"""
     try:
         ikonic_db_connection = sqlite3.connect(
             'ikonic.db', check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
         cursor.execute(
-            "INSERT INTO car_passengers (car_id, user_id)", (car_id, user_id))
+            "INSERT INTO car_passengers (car_id, user_id, seat_position) VALUES (?, ?, ?)", (car_id, user_id, seat_position, ))
         ikonic_db_connection.commit()
     except Exception as e:
         raise HTTPException(status_code=400, detail=e) from e
