@@ -465,7 +465,8 @@ def add_passenger(car_id: int, user_id: str, seat_position: int):
             'ikonic.db', check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
         cursor.execute(
-            "INSERT INTO car_passengers (car_id, user_id, seat_position) VALUES (?, ?, ?)", (car_id, user_id, seat_position, ))
+            """INSERT INTO car_passengers (car_id, user_id, seat_position) VALUES (?, ?, ?)
+            ON CONFLICT(car_id, seat_position) DO UPDATE SET user_id = excluded.user_id;""", (car_id, user_id, seat_position, ))
         ikonic_db_connection.commit()
     except Exception as e:
         raise HTTPException(status_code=400, detail=e) from e
