@@ -87,8 +87,9 @@ Login = [
 # ikonic_db_connection = sqlite3.connect(
 #     'ikonic.db', check_same_thread=False)
 # cursor = ikonic_db_connection.cursor()
-# cursor.execute("UPDATE trips SET owner = ? WHERE id = ? ",
-#                ("6556cf1c-88e7-4f6a-bff7-b8be7d546628", 31))
+# cursor.execute("ALTER TABLE trips ADD COLUMN desc TEXT")
+# cursor.execute("UPDATE trips SET image = ? WHERE id = ? ",
+#                ("", 31))
 # ikonic_db_connection.commit()
 
 
@@ -279,11 +280,35 @@ async def get_trips(request: Request):
             "startDate": trip[2],
             "endDate": trip[3],
             "mountain": trip[4],
-            "owner": trip[5]
+            "owner": trip[5],
+            "image": trip[6],
+            "desc": trip[7]
         }
         for trip in row
     ]
     }
+
+
+@app.post('/{trip_id}/update-trip')
+async def update_trip(trip_id: str, request: Request):
+    data = await request.json()
+    title = data['title']
+    desc = data['desc']
+    image = data['image']
+    try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
+        cursor.execute(
+            "UPDATE trips SET title = ?, desc = ?, image = ? WHERE id = ?", (title, desc, image, trip_id))
+        ikonic_db_connection.commit()
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=400, detail=e) from e
+
+    finally:
+        ikonic_db_connection.close()
+    return {"message": "Trip updated successfully"}
 
 
 @app.delete('/delete-trip/{trip_id}')
