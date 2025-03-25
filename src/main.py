@@ -87,8 +87,8 @@ Login = [
 # ikonic_db_connection = sqlite3.connect(
 #     'ikonic.db', check_same_thread=False)
 # cursor = ikonic_db_connection.cursor()
-# res = cursor.execute("SELECT * FROM cars")
-# print(res.fetchall())
+# cursor.execute("UPDATE trips SET owner = ? WHERE id = ? ",
+#                ("6556cf1c-88e7-4f6a-bff7-b8be7d546628", 31))
 # ikonic_db_connection.commit()
 
 
@@ -242,8 +242,8 @@ async def create_trip(request: Request):
             status_code=400, detail=f"Missing field in request data: {e}") from e
 
     cursor.execute(
-        "INSERT INTO trips (title, mountain, start_date, end_date) VALUES (?, ?, ?, ?)",
-        (title, mountain, start_date, end_date)
+        "INSERT INTO trips (title, mountain, start_date, end_date, owner) VALUES (?, ?, ?, ?, ?)",
+        (title, mountain, start_date, end_date, user_id)
     )
     trip_id = cursor.lastrowid
     cursor.execute(
@@ -278,7 +278,8 @@ async def get_trips(request: Request):
             "title": trip[1],
             "startDate": trip[2],
             "endDate": trip[3],
-            "mountain": trip[4]
+            "mountain": trip[4],
+            "owner": trip[5]
         }
         for trip in row
     ]
