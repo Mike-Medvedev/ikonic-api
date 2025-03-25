@@ -292,15 +292,25 @@ async def get_trips(request: Request):
 @app.post('/{trip_id}/update-trip')
 async def update_trip(trip_id: str, request: Request):
     data = await request.json()
-    title = data['title']
-    desc = data['desc']
-    image = data['image']
+    title = data.get("title", "")
+    desc = data.get("desc", "")
+    image = data.get("image", "")
     try:
         ikonic_db_connection = sqlite3.connect(
             'ikonic.db', check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
         cursor.execute(
-            "UPDATE trips SET title = ?, desc = ?, image = ? WHERE id = ?", (title, desc, image, trip_id))
+            """
+                UPDATE trips
+                SET
+                title = COALESCE(NULLIF(?, ''), title),
+                desc  = COALESCE(NULLIF(?, ''), desc),
+                image = COALESCE(NULLIF(?, ''), image)
+                WHERE id = ?
+            """,
+            (title, desc, image, trip_id)
+        )
+
         ikonic_db_connection.commit()
     except Exception as e:
         print(e)
