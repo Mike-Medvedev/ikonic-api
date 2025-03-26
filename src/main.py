@@ -85,13 +85,13 @@ Login = [
 # res2 = cursor.execute("SELECT * FROM users WHERE user_id = ?",
 #                       ("6556cf1c-88e7-4f6a-bff7-b8be7d546628", ))
 # # print(res2.fetchone())
-# ikonic_db_connection = sqlite3.connect(
-#     'ikonic.db', check_same_thread=False)
-# cursor = ikonic_db_connection.cursor()
-# res = cursor.execute(
-#     "SELECT * FROM trips")
-# result = res.fetchall()
-# print(result)
+ikonic_db_connection = sqlite3.connect(
+    'ikonic.db', check_same_thread=False)
+cursor = ikonic_db_connection.cursor()
+res = cursor.execute(
+    "SELECT * FROM trips_users_mapping WHERE trip_id = ? AND user_id = ?", (31, "6556cf1c-88e7-4f6a-bff7-b8be7d546628"))
+result = res.fetchall()
+print(result)
 # ikonic_db_connection.commit()
 
 
@@ -194,7 +194,8 @@ def get_invited_users(selectedTrip: int):
 
         invited_users = rows.fetchall()
 
-        rsvp_groups = {"going": [], "maybe": [], "not_going": []}
+        rsvp_groups = {"going": [], "pending": [],
+                       "maybe": [], "not_going": []}
 
         for user in invited_users:
             status = user["rsvp"]
@@ -213,6 +214,7 @@ def get_invited_users(selectedTrip: int):
         return {
             "invited_users": {
                 "going": rsvp_groups["going"],
+                "pending": rsvp_groups["pending"],
                 "maybe": rsvp_groups["maybe"],
                 "not_going": rsvp_groups["not_going"]
             }
@@ -249,8 +251,8 @@ async def create_trip(request: Request):
     )
     trip_id = cursor.lastrowid
     cursor.execute(
-        "INSERT INTO trips_users_mapping (trip_id, user_id) VALUES (?, ?)",
-        (trip_id, user_id)
+        "INSERT INTO trips_users_mapping (trip_id, user_id, rsvp) VALUES (?, ?, ?)",
+        (trip_id, user_id, "going")
     )
     res = cursor.execute("SELECT * FROM trips WHERE id = ?", (trip_id, ))
     new_trip = res.fetchone()
@@ -344,6 +346,8 @@ async def invite_user(request: Request):
     body = await request.json()
     user = body["user"]
     phone_number: str = user["phone_number"]
+    user_id = user["user_id"]
+    trip_id = body["trip_id"]
     deep_link = body["deep_link"]
     if not user or not phone_number:
         raise HTTPException(
@@ -355,6 +359,18 @@ async def invite_user(request: Request):
     )
 
     response: SmsResponse = client.sms.send(message)
+    try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
+        cursor.execute("UPDATE trips_users_mapping SET rsvp = ? WHERE trip_id = ? AND user_id = ?",
+                       ("pending", trip_id, user_id,))
+        ikonic_db_connection.commit()
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=400, detail="RSVP Error") from e
+    finally:
+        ikonic_db_connection.close()
     return {"response": "success"}
 
 
