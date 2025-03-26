@@ -89,7 +89,7 @@ Login = [
 #     'ikonic.db', check_same_thread=False)
 # cursor = ikonic_db_connection.cursor()
 # res = cursor.execute(
-#     "SELECT * FROM trips_users_mapping where trip_id = 31")
+#     "SELECT * FROM trips")
 # result = res.fetchall()
 # print(result)
 # ikonic_db_connection.commit()
@@ -253,7 +253,6 @@ async def create_trip(request: Request):
         (trip_id, user_id)
     )
     ikonic_db_connection.commit()
-    print(data)
     ikonic_db_connection.close()
     return {"message": "Trip created successfully", "trip_id": trip_id}
 
@@ -272,7 +271,6 @@ async def get_trips(request: Request):
     res = cursor.execute("""SELECT trips.* FROM trips JOIN trips_users_mapping ON trips.id
                          = trips_users_mapping.trip_id WHERE trips_users_mapping.user_id = ?""", (user_id, ))
     row = res.fetchall()
-    print(row)
     ikonic_db_connection.close()
     return {"trips": [
         {
@@ -298,7 +296,6 @@ async def update_trip(trip_id: str, request: Request):
     desc = data.get("desc", "")
     image = data.get("image", "")
     total_cost = data.get("totalCost", "")
-    print(f"RECIEVED COST! {total_cost}")
     try:
         ikonic_db_connection = sqlite3.connect(
             'ikonic.db', check_same_thread=False)
@@ -346,7 +343,6 @@ async def invite_user(request: Request):
     user = body["user"]
     phone_number: str = user["phone_number"]
     deep_link = body["deep_link"]
-    print(user, deep_link)
     if not user or not phone_number:
         raise HTTPException(
             status_code=400, detail="Please provide a user when inviting")
@@ -357,7 +353,6 @@ async def invite_user(request: Request):
     )
 
     response: SmsResponse = client.sms.send(message)
-    print(response)
     return {"response": "success"}
 
 
@@ -371,7 +366,6 @@ async def rsvp(request: Request):
         user_id = request.headers.get("authorization")
         trip_id = body["trip_id"]
         user_response = body["user_response"]
-        print(user_id, trip_id, user_response)
         if not user_id or not trip_id or not user_response:
             ikonic_db_connection.close()
             raise HTTPException(
@@ -385,10 +379,6 @@ async def rsvp(request: Request):
             (int(trip_id), user_id, user_response)
         )
         ikonic_db_connection.commit()
-        res = cursor.execute("SELECT * FROM trips_users_mapping")
-
-        print(res.fetchall())
-        ikonic_db_connection.close()
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail="RSVP Error") from e
@@ -429,7 +419,6 @@ def get_cars_for_trip(trip_id: int):
         cars = [dict(car) for car in fetched_cars]
         retrieved_cars = []
         for car in cars:
-            print(f"PRINTING EACH CAR {car}")
             res = cursor.execute("""
                         SELECT
                             car_passengers.seat_position,
@@ -441,10 +430,8 @@ def get_cars_for_trip(trip_id: int):
                         JOIN users ON car_passengers.user_id = users.user_id
                         WHERE car_passengers.car_id = ?""", (car["id"], ))
             passengers = res.fetchall()
-            print(passengers)
             result = {**car, "passengers": passengers}
             retrieved_cars.append(result)
-            print(result)
         return retrieved_cars
     except Exception as e:
         raise HTTPException(status_code=400, detail=e) from e
@@ -470,7 +457,6 @@ def create_car(trip_id: int, car: NewCar):
         ikonic_db_connection = sqlite3.connect(
             'ikonic.db', check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
-        # print(car.owner)
         cursor.execute("INSERT INTO cars (trip_id, owner, seat_count) VALUES (?, ?, ?)",
                        (trip_id, car.owner.user_id, car.seatCount))
         generated_id = cursor.lastrowid
