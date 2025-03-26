@@ -252,9 +252,11 @@ async def create_trip(request: Request):
         "INSERT INTO trips_users_mapping (trip_id, user_id) VALUES (?, ?)",
         (trip_id, user_id)
     )
+    res = cursor.execute("SELECT * FROM trips WHERE id = ?", (trip_id, ))
+    new_trip = res.fetchone()
     ikonic_db_connection.commit()
     ikonic_db_connection.close()
-    return {"message": "Trip created successfully", "trip_id": trip_id}
+    return {"message": "Trip created successfully", "new_trip": new_trip}
 
 
 @app.get('/get-trips')
