@@ -44,6 +44,7 @@ Login = [
 #   trip_id INTEGER,
 #   user_id TEXT,
 #   rsvp TEXT,
+#   paid INTEGER,
 #   PRIMARY KEY (trip_id, user_id),
 #   FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
 #   FOREIGN KEY (user_id) REFERENCES users(user_id)
@@ -87,9 +88,10 @@ Login = [
 # ikonic_db_connection = sqlite3.connect(
 #     'ikonic.db', check_same_thread=False)
 # cursor = ikonic_db_connection.cursor()
-# cursor.execute("ALTER TABLE trips ADD COLUMN desc TEXT")
-# cursor.execute("UPDATE trips SET image = ? WHERE id = ? ",
-#                ("", 31))
+# res = cursor.execute(
+#     "SELECT * FROM trips_users_mapping where trip_id = 31")
+# result = res.fetchall()
+# print(result)
 # ikonic_db_connection.commit()
 
 
@@ -184,15 +186,13 @@ def get_invited_users(selectedTrip: int):
             status_code=400, detail="Please provide a valid trip ID")
     try:
         rows = cursor.execute("""
-            SELECT users.*, trips_users_mapping.rsvp 
+            SELECT users.*, trips_users_mapping.rsvp, trips_users_mapping.paid 
             FROM users
             JOIN trips_users_mapping ON users.user_id = trips_users_mapping.user_id
             WHERE trips_users_mapping.trip_id = ?
         """, (selectedTrip,))
 
         invited_users = rows.fetchall()
-        for row in invited_users:
-            print(dict(row))
 
         rsvp_groups = {"going": [], "maybe": [], "not_going": []}
 
@@ -204,7 +204,8 @@ def get_invited_users(selectedTrip: int):
                     "firstname": user["firstname"],
                     "lastname": user["lastname"],
                     "phone_number": user["phone_number"],
-                    "rsvp": status
+                    "rsvp": status,
+                    "paid": user["paid"]
                 })
 
         ikonic_db_connection.close()
@@ -282,7 +283,8 @@ async def get_trips(request: Request):
             "mountain": trip[4],
             "owner": trip[5],
             "image": trip[6],
-            "desc": trip[7]
+            "desc": trip[7],
+            "total_cost": trip[8]
         }
         for trip in row
     ]
@@ -295,6 +297,8 @@ async def update_trip(trip_id: str, request: Request):
     title = data.get("title", "")
     desc = data.get("desc", "")
     image = data.get("image", "")
+    total_cost = data.get("totalCost", "")
+    print(f"RECIEVED COST! {total_cost}")
     try:
         ikonic_db_connection = sqlite3.connect(
             'ikonic.db', check_same_thread=False)
@@ -305,10 +309,11 @@ async def update_trip(trip_id: str, request: Request):
                 SET
                 title = COALESCE(NULLIF(?, ''), title),
                 desc  = COALESCE(NULLIF(?, ''), desc),
-                image = COALESCE(NULLIF(?, ''), image)
+                image = COALESCE(NULLIF(?, ''), image),
+                total_cost = COALESCE(NULLIF(?, ''), total_cost)
                 WHERE id = ?
             """,
-            (title, desc, image, trip_id)
+            (title, desc, image, total_cost, trip_id)
         )
 
         ikonic_db_connection.commit()
@@ -508,3 +513,26 @@ def add_passenger(car_id: int, user_id: str, seat_position: int):
         raise HTTPException(status_code=400, detail=e) from e
     finally:
         ikonic_db_connection.close()
+
+
+@app.post('/{trip_id}/{user_id}/update-paid')
+async def update_paid_status(trip_id: str, user_id: str, request: Request):
+    data = await request.json()
+    if "new_status" not in data:
+        raise HTTPException(
+            status_code=400, detail="Error: no new_status given")
+
+    new_status = data["new_status"]
+    try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
+        cursor.execute(
+            "UPDATE trips_users_mapping SET paid = ? WHERE trip_id = ? AND user_id = ?", (int(new_status), trip_id, user_id))
+        ikonic_db_connection.commit()
+    except Exception as e:
+        print(e)
+        raise HTTPException(detail=400, status_code=e) from e
+    finally:
+        ikonic_db_connection.close()
+    return {"message": "Successfully Updated"}
