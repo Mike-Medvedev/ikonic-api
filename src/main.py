@@ -536,3 +536,26 @@ async def update_paid_status(trip_id: str, user_id: str, request: Request):
     finally:
         ikonic_db_connection.close()
     return {"message": "Successfully Updated"}
+
+
+@app.post('/{user_id}/update-phone')
+async def update_phone_number(user_id: str, request: Request):
+    data = await request.json()
+    if "phone_number" not in data:
+        raise HTTPException(
+            status_code=400, detail="Error: no new_status given")
+
+    new_phone_number = data["phone_number"]
+    try:
+        ikonic_db_connection = sqlite3.connect(
+            'ikonic.db', check_same_thread=False)
+        cursor = ikonic_db_connection.cursor()
+        cursor.execute(
+            "UPDATE users SET phone_number = ? WHERE user_id = ?", (new_phone_number, user_id))
+        ikonic_db_connection.commit()
+    except Exception as e:
+        print(e)
+        raise HTTPException(detail=400, status_code=e) from e
+    finally:
+        ikonic_db_connection.close()
+    return {"message": "Successfully Updated"}
