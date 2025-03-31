@@ -85,13 +85,13 @@ Login = [
 # res2 = cursor.execute("SELECT * FROM users WHERE user_id = ?",
 #                       ("6556cf1c-88e7-4f6a-bff7-b8be7d546628", ))
 # # print(res2.fetchone())
-ikonic_db_connection = sqlite3.connect(
-    'ikonic.db', check_same_thread=False)
-cursor = ikonic_db_connection.cursor()
-res = cursor.execute(
-    "SELECT * FROM trips_users_mapping WHERE trip_id = ? AND user_id = ?", (31, "6556cf1c-88e7-4f6a-bff7-b8be7d546628"))
-result = res.fetchall()
-print(result)
+# ikonic_db_connection = sqlite3.connect(
+#     'ikonic.db', check_same_thread=False)
+# cursor = ikonic_db_connection.cursor()
+# res = cursor.execute(
+#     "SELECT * FROM users")
+# result = res.fetchall()
+# print(result)
 # ikonic_db_connection.commit()
 
 
@@ -134,7 +134,8 @@ async def login(user: User):
                 detail="Incorrect username or password"
             )
         ikonic_db_connection.close()
-        return {"message": "Login Successful", "user_id": user_id}
+        data = {"user_id": user_id}
+        return {"message": "Login Successful", "data": data}
     ikonic_db_connection.close()
     raise HTTPException(status_code=401, detail="Account not found")
 
@@ -254,11 +255,9 @@ async def create_trip(request: Request):
         "INSERT INTO trips_users_mapping (trip_id, user_id, rsvp) VALUES (?, ?, ?)",
         (trip_id, user_id, "going")
     )
-    res = cursor.execute("SELECT * FROM trips WHERE id = ?", (trip_id, ))
-    new_trip = res.fetchone()
     ikonic_db_connection.commit()
     ikonic_db_connection.close()
-    return {"message": "Trip created successfully", "new_trip": new_trip}
+    return {"message": "Trip created successfully", "data": trip_id}
 
 
 @app.get('/get-trips')
