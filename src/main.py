@@ -149,7 +149,7 @@ async def profile(user_id: str):
         """ SELECT user_id, firstname, lastname, phone_number FROM users WHERE user_id = ? """, (user_id, ))
     row = res.fetchone()
     ikonic_db_connection.close()
-    return {"profile_data": {"user_id": row[0], "firstname": row[1], "lastname": row[2], "phone_number": row[3]}}
+    return {"data": {"user_id": row[0], "firstname": row[1], "lastname": row[2], "phone_number": row[3]}}
 
 
 @app.get('/users')
@@ -275,7 +275,7 @@ async def get_trips(request: Request):
                          = trips_users_mapping.trip_id WHERE trips_users_mapping.user_id = ?""", (user_id, ))
     row = res.fetchall()
     ikonic_db_connection.close()
-    return {"trips": [
+    return {"data": [
         {
             "id": trip[0],
             "title": trip[1],
@@ -290,6 +290,35 @@ async def get_trips(request: Request):
         for trip in row
     ]
     }
+
+
+@app.get('/get-trip/{selectedTripId}')
+async def get_trip(selectedTripId: str):
+    ikonic_db_connection = sqlite3.connect(
+        'ikonic.db', check_same_thread=False)
+    cursor = ikonic_db_connection.cursor()
+    # if not user_id:
+    #     ikonic_db_connection.close()
+    #     raise HTTPException(
+    #         status_code=401, detail="Missing Authorization Header")
+    res = cursor.execute(
+        """SELECT * FROM trips WHERE id = ?""", (selectedTripId, ))
+    trip = res.fetchone()
+    ikonic_db_connection.close()
+    return {"data":
+            {
+                "id": trip[0],
+                "title": trip[1],
+                "startDate": trip[2],
+                "endDate": trip[3],
+                "mountain": trip[4],
+                "owner": trip[5],
+                "image": trip[6],
+                "desc": trip[7],
+                "total_cost": trip[8]
+            }
+
+            }
 
 
 @app.post('/{trip_id}/update-trip')
