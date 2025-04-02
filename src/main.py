@@ -169,7 +169,7 @@ def get_users():
             } for user in users
         ]
         ikonic_db_connection.close()
-        return {"users": list_of_users}
+        return {"data": list_of_users}
     except Exception as e:
         ikonic_db_connection.close()
         raise HTTPException(status_code=400, detail=f"{e}") from e
@@ -213,11 +213,11 @@ def get_invited_users(selectedTrip: int):
         ikonic_db_connection.close()
 
         return {
-            "invited_users": {
-                "going": rsvp_groups["going"],
+            "data": {
+                "accepted": rsvp_groups["going"],
                 "pending": rsvp_groups["pending"],
-                "maybe": rsvp_groups["maybe"],
-                "not_going": rsvp_groups["not_going"]
+                "uncertain": rsvp_groups["maybe"],
+                "declined": rsvp_groups["not_going"]
             }
         }
     except Exception as e:
@@ -478,7 +478,7 @@ def get_cars_for_trip(trip_id: int):
             passengers = res.fetchall()
             result = {**car, "passengers": passengers}
             retrieved_cars.append(result)
-        return retrieved_cars
+        return {"data": retrieved_cars}
     except Exception as e:
         raise HTTPException(status_code=400, detail=e) from e
     finally:
