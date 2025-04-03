@@ -195,8 +195,8 @@ def get_invited_users(selectedTrip: int):
 
         invited_users = rows.fetchall()
 
-        rsvp_groups = {"going": [], "pending": [],
-                       "maybe": [], "not_going": []}
+        rsvp_groups = {"accepted": [], "pending": [],
+                       "uncertain": [], "declined": []}
 
         for user in invited_users:
             status = user["rsvp"]
@@ -214,10 +214,10 @@ def get_invited_users(selectedTrip: int):
 
         return {
             "data": {
-                "accepted": rsvp_groups["going"],
+                "accepted": rsvp_groups["accepted"],
                 "pending": rsvp_groups["pending"],
-                "uncertain": rsvp_groups["maybe"],
-                "declined": rsvp_groups["not_going"]
+                "uncertain": rsvp_groups["uncertain"],
+                "declined": rsvp_groups["declined"]
             }
         }
     except Exception as e:
@@ -253,7 +253,7 @@ async def create_trip(request: Request):
     trip_id = cursor.lastrowid
     cursor.execute(
         "INSERT INTO trips_users_mapping (trip_id, user_id, rsvp) VALUES (?, ?, ?)",
-        (trip_id, user_id, "going")
+        (trip_id, user_id, "accepted")
     )
     ikonic_db_connection.commit()
     ikonic_db_connection.close()
@@ -302,7 +302,7 @@ async def get_trip(selectedTripId: str):
     #     raise HTTPException(
     #         status_code=401, detail="Missing Authorization Header")
     res = cursor.execute(
-        """SELECT * FROM trips WHERE id = ?""", (selectedTripId, ))
+        """SELECT trips.*, users.* FROM trips JOIN users ON users.user_id = trips.owner WHERE trips.id = ?""", (selectedTripId,))
     trip = res.fetchone()
     ikonic_db_connection.close()
     return {"data":
@@ -312,7 +312,12 @@ async def get_trip(selectedTripId: str):
                 "startDate": trip[2],
                 "endDate": trip[3],
                 "mountain": trip[4],
-                "owner": trip[5],
+                "owner": {
+                    "user_id": trip[9],
+                    "firstname": trip[12],
+                    "lastname": trip[13],
+                    "phone_number": trip[14]
+                },
                 "image": trip[6],
                 "desc": trip[7],
                 "total_cost": trip[8]
@@ -439,46 +444,37 @@ def get_cars_for_trip(trip_id: int):
             'ikonic.db', check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
         cursor.row_factory = sqlite3.Row
-        # rows = cursor.execute(
-        #         """
-        #         SELECT
-        #             cars.id AS car_id,
-        #             cars.trip_id,
-        #             cars.owner,
-        #             cars.seat_count,
-        #             car_passengers.seat_position,
-        #             users.user_id,
-        #             users.firstname,
-        #             users.lastname,
-        #             users.phone_number
-        #         FROM cars
-        #         LEFT JOIN car_passengers ON cars.id = car_passengers.car_id
-        #         LEFT JOIN users ON car_passengers.user_id = users.user_id
-        #         WHERE cars.trip_id = ?
-        #         """, (trip_id, )
-# )
         rows = cursor.execute("""
-                              SELECT cars.id, cars.trip_id, cars.owner, cars.seat_count
-                              FROM cars
-                              WHERE cars.trip_id = ?""", (trip_id, ))
+            SELECT cars.id, cars.trip_id, cars.owner, cars.seat_count
+            FROM cars
+            WHERE cars.trip_id = ?""", (trip_id,))
         fetched_cars = rows.fetchall()
         cars = [dict(car) for car in fetched_cars]
         retrieved_cars = []
+
         for car in cars:
+            owner_query = cursor.execute("""
+                SELECT user_id, firstname, lastname, phone_number
+                FROM users
+                WHERE user_id = ?""", (car["owner"],))
+            owner = owner_query.fetchone()
+            car["owner"] = dict(owner) if owner else None
             res = cursor.execute("""
-                        SELECT
-                            car_passengers.seat_position,
-                            users.user_id, 
-                            users.firstname, 
-                            users.lastname, 
-                            users.phone_number
-                        FROM car_passengers
-                        JOIN users ON car_passengers.user_id = users.user_id
-                        WHERE car_passengers.car_id = ?""", (car["id"], ))
+                SELECT
+                    car_passengers.seat_position,
+                    users.user_id, 
+                    users.firstname, 
+                    users.lastname, 
+                    users.phone_number
+                FROM car_passengers
+                JOIN users ON car_passengers.user_id = users.user_id
+                WHERE car_passengers.car_id = ?""", (car["id"],))
             passengers = res.fetchall()
-            result = {**car, "passengers": passengers}
+            result = {**car, "passengers": [dict(p) for p in passengers]}
             retrieved_cars.append(result)
+
         return {"data": retrieved_cars}
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=e) from e
     finally:
@@ -493,7 +489,7 @@ class Car(BaseModel):
 
 
 class NewCar(BaseModel):
-    owner: User
+    owner: str
     seatCount: int
 
 
@@ -504,7 +500,7 @@ def create_car(trip_id: int, car: NewCar):
             'ikonic.db', check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
         cursor.execute("INSERT INTO cars (trip_id, owner, seat_count) VALUES (?, ?, ?)",
-                       (trip_id, car.owner.user_id, car.seatCount))
+                       (trip_id, car.owner, car.seatCount))
         generated_id = cursor.lastrowid
         new_car: Car = {"car_id": generated_id, "owner": car.owner,
                         "passengers": [], "seat_count": car.seatCount}
