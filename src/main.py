@@ -23,16 +23,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Login = [
-    ('mev', 'clat', 'michael', 'medvedev', '2038587135'),
-    ('kelp', 'thar', 'john', 'roslin', '7324926329'),
-    ('pit', 'pauxt', None, None, None),
-    ('pf', 'chang', None, None, None),
-    ('zecroy', 'menoy', None, None, None),
-    ('ok', 'chris', None, None, None),
-    ('ost', 'edging', None, None, None)
-]
-
 
 # cursor.execute(
 #     'CREATE TABLE trips(id INTEGER PRIMARY KEY AUTOINCREMENT, title, start_date, end_date, mountain)')
