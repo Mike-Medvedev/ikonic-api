@@ -1,9 +1,9 @@
 from sqlmodel import create_engine, SQLModel
-from core.config import settings
-from models import *
+from src.core.config import settings
+from src.models import *
 
 
-engine = create_engine(url=settings.SQLALCHEMY_DATABASE_URI, echo=True)
+engine = create_engine(url=str(settings.SQLALCHEMY_DATABASE_URI), echo=True)
 
 
 def init_db():

@@ -1,7 +1,12 @@
 from typing import Optional, List
+from pydantic import BaseModel
 from datetime import date
 import uuid
 from sqlmodel import Relationship, SQLModel, Field
+
+
+class DTO[T](BaseModel):
+    data: T
 
 
 class User(SQLModel, table=True):
@@ -10,23 +15,41 @@ class User(SQLModel, table=True):
     id: uuid.UUID = Field(primary_key=True)
 
 
-class Trip(SQLModel, table=True):
-    __tablename__ = "trips"
-    id: Optional[int] = Field(default=None, primary_key=True)
+class TripBase(SQLModel):
     title: str
     start_date: date
     end_date: date
     mountain: str
+
+
+class Trip(TripBase, table=True):
+    __tablename__ = "trips"
+    id: Optional[int] = Field(default=None, primary_key=True)
     cars: List["Car"] = Relationship()
+
+
+class TripCreate(TripBase):
+    pass
+
+
+class TripPublic(TripBase):
+    id: int
+
+
+class TripUpdate(SQLModel):
+    title: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    mountain: Optional[str] = None
 
 
 class TripUserLink(SQLModel, table=True):
     __tablename__ = "trips_users_map"
-    trip_id: int = Field(primary_key=True, foreign_key="trip.id")
+    trip_id: int = Field(primary_key=True, foreign_key="trips.id")
     # no need to make fk on supabase auth.users, let db handle
-    user_id: uuid.UUID = Field(primary_key=True, foreign_key="user.id")
-    rsvp: str
-    paid: int
+    user_id: uuid.UUID = Field(primary_key=True, foreign_key="auth.users.id")
+    rsvp: Optional[str] = None
+    paid: Optional[int] = None
 
 
 class Car(SQLModel, table=True):
