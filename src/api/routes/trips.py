@@ -94,6 +94,17 @@ def delete_car(trip_id: int, car_id: int, session: SessionDep):
     return {"data": True}
 
 
+@router.get('/{trip_id}/invites', response_model=DTO[List[User]])
+def get_invited_users(trip_id: int, session: SessionDep):
+    statement = (
+        select(User)
+        .join(TripUserLink, TripUserLink.user_id == User.id)
+        .where(TripUserLink.trip_id == trip_id)
+    )
+    users = session.exec(statement).all()
+    return {"data": users}
+
+
 @router.post('/{trip_id}/invites/{user_id}', response_model=DTO[TripUserLink], status_code=201)
 def invite_user(trip_id: int, user_id: str, rsvp: Rsvp,  session: SessionDep, vonage: VonageDep):
     user = session.get(User, user_id)
