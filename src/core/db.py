@@ -1,10 +1,9 @@
 from sqlmodel import create_engine, SQLModel
+from core.config import settings
 from models import *
 
 
-connection_string = "***REMOVED***"
-
-engine = create_engine(url=connection_string, echo=True)
+engine = create_engine(url=settings.SQLALCHEMY_DATABASE_URI, echo=True)
 
 
 def init_db():
