@@ -100,7 +100,7 @@ class Car(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     trip_id: int = Field(foreign_key="trips.id", ondelete="CASCADE")
     owner: uuid.UUID = Field(foreign_key="auth.users.id")
-    passengers: List["Passenger"] = Relationship()
+    passengers: List["Passenger"] = Relationship(back_populates="car")
     seat_count: int = 4
 
 
@@ -109,10 +109,20 @@ class CarPublic(CarBase):
     trip_id: int
 
 
-class Passenger(SQLModel, table=True):
+class PassengerBase(SQLModel):
+    seat_position: int
+
+
+class Passenger(PassengerBase, table=True):
     __tablename__ = "passengers"
     user_id: uuid.UUID = Field(
-        foreign_key="users.id", primary_key=True, ondelete="CASCADE")
+        foreign_key="auth.users.id", primary_key=True, ondelete="CASCADE")
     car_id:  int = Field(foreign_key="cars.id",
                          primary_key=True, ondelete="CASCADE")
-    seat_position: int
+    car: Car = Relationship(back_populates="passengers")
+
+
+class PassengerCreate(PassengerBase):
+    # user_id: uuid.UUID
+    # car_id: int
+    pass

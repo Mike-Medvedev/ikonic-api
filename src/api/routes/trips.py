@@ -2,7 +2,7 @@ from typing import List
 import uuid
 from fastapi import APIRouter, HTTPException
 from src.api.deps import SessionDep, VonageDep, send_sms_invte
-from src.models import Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car, CarCreate, CarPublic, TripUserLinkRsvp, Rsvp, User
+from src.models import Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car, CarCreate, CarPublic, TripUserLinkRsvp, Rsvp, User, Passenger, PassengerCreate
 from sqlmodel import select
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -131,3 +131,32 @@ def create_rsvp(trip_id: int, user_id: str, res: TripUserLinkRsvp, session: Sess
     session.commit()
     session.refresh(updated_link)
     return {"data": updated_link}
+
+
+@router.post('/{trip_id}/cars/{car_id}/passengers/{user_id}', response_model=DTO[PassengerCreate])
+def add_passenger(trip_id: int, car_id: int, user_id: str, passenger: PassengerCreate, session: SessionDep):
+    user_uuid = uuid.UUID(user_id)
+    car = session.get(Car, car_id)
+    if not car or car.trip_id != trip_id:
+        raise HTTPException(404, "Car not found on this trip")
+
+    user = session.get(User, user_uuid)
+    if not user:
+        raise HTTPException(404, "User not found")
+    new_passenger = Passenger(**passenger.model_dump(),
+                              user_id=user_uuid, car_id=car_id)
+    session.add(new_passenger)
+    session.commit()
+    session.refresh(new_passenger)
+    print(car.passengers)
+    return {"data": new_passenger}
+
+
+@router.get('/{trip_id}/cars/{car_id}/passengers', response_model=DTO[List[Passenger]])
+def get_passengers(trip_id: int, car_id: int, session: SessionDep):
+    car = session.get(Car, car_id)
+    if not car or car.trip_id != trip_id:
+        raise HTTPException(404, "Car not found on this trip")
+    session.refresh(car)
+    print(f"printing car {car}")
+    return {"data": car.passengers}
