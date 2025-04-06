@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from src.api.routes import users, trips, cars
+from src.api.routes import users, trips
 
 api_router = APIRouter()
 
@@ -11,4 +11,3 @@ def main():
 
 api_router.include_router(users.router)
 api_router.include_router(trips.router)
-api_router.include_router(cars.router)

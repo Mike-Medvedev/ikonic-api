@@ -66,9 +66,9 @@ class Car(SQLModel, table=True):
     __tablename__ = "cars"
     id: Optional[int] = Field(default=None, primary_key=True)
     trip_id: int = Field(foreign_key="trips.id", ondelete="CASCADE")
-    owner: uuid.UUID = Field(foreign_key="user.id")
+    owner: uuid.UUID = Field(foreign_key="users.id")
     passengers: List["Passenger"] = Relationship()
-    seat_count: int
+    seat_count: int = 4
 
 
 class Passenger(SQLModel, table=True):

@@ -2,7 +2,7 @@ from typing import List
 import uuid
 from fastapi import APIRouter, HTTPException
 from src.api.deps import SessionDep
-from src.models import Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO
+from src.models import Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car
 from sqlmodel import select
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -88,7 +88,7 @@ def get_trips(session: SessionDep):
 
 
 @router.get('/{id}', response_model=DTO[TripPublic])
-async def get_trip(id: str, session: SessionDep):
+async def get_trip(id: int, session: SessionDep):
     trip = session.get(Trip, id)
     return {"data": trip}
     # ikonic_db_connection = sqlite3.connect(
@@ -124,7 +124,7 @@ async def get_trip(id: str, session: SessionDep):
 
 
 @router.patch('/{id}', response_model=DTO[TripPublic])
-async def update_trip(trip: TripUpdate, id: str, session: SessionDep):
+async def update_trip(trip: TripUpdate, id: int, session: SessionDep):
     trip_db = session.get(Trip, id)
     if not id:
         raise HTTPException(
@@ -168,7 +168,7 @@ async def update_trip(trip: TripUpdate, id: str, session: SessionDep):
 
 
 @router.delete('/{id}')
-def delete_post(id: str, session: SessionDep):
+def delete_post(id: int, session: SessionDep):
     trip_db = session.get(Trip, id)
     if not trip_db:
         raise HTTPException(status_code=404, detail="Trip Not Found")
@@ -185,3 +185,18 @@ def delete_post(id: str, session: SessionDep):
     # cursor.execute("DELETE FROM trips where id = ?", (trip_id, ))
     # ikonic_db_connection.commit()
     # ikonic_db_connection.close()
+
+
+@router.get('/{id}/cars/', response_model=DTO[List[Car]])
+def get_cars_for_trip(id: int, session: SessionDep):
+    cars = session.exec(select(Car).join(Trip).where(Trip.id == id)).all()
+    return {"data": list(cars)}
+
+
+@router.get('/{trip_id}/cars/{car_id}')
+def get_car_by_id(trip_id: int, car_id: int, session: SessionDep):
+    car = session.exec(select(Car).where(
+        Car.trip_id == trip_id, Car.id == car_id)).first()
+    if not car:
+        raise HTTPException(status_code=404, detail="Car Not Found")
+    return car
