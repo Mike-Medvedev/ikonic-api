@@ -54,7 +54,7 @@ class TripUpdate(SQLModel):
 
 
 class TripUserLinkBase(SQLModel):
-    trsvp: Optional[str] = None
+    rsvp: Optional[str] = None
     paid: Optional[int] = None
 
 

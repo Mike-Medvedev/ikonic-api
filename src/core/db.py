@@ -3,6 +3,7 @@ from src.core.config import settings
 from src.models import *
 
 
+# print(str(settings.SQLALCHEMY_DATABASE_URI))
 engine = create_engine(url=str(settings.SQLALCHEMY_DATABASE_URI), echo=True)
 
 
