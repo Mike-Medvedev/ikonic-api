@@ -9,10 +9,20 @@ class DTO[T](BaseModel):
     data: T
 
 
-class User(SQLModel, table=True):
+class SupabaseUser(SQLModel, table=True):
     __tablename__ = "users"
     __table_args__ = {"schema": "auth"}
     id: uuid.UUID = Field(primary_key=True)
+
+
+class User(SQLModel, table=True):
+    __tablename__ = "users"
+    __table_args__ = {"schema": "public"}
+    id: uuid.UUID = Field(
+        primary_key=True, foreign_key="auth.users.id", ondelete="CASCADE")
+    phone: str = Field(foreign_key="auth.users.phone")
+    firstname: Optional[str]
+    lastname: Optional[str]
 
 
 class TripBase(SQLModel):
@@ -63,7 +73,8 @@ class Car(SQLModel, table=True):
 
 class Passenger(SQLModel, table=True):
     __tablename__ = "passengers"
-    user_id: uuid.UUID = Field(foreign_key="auth.users.id", primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="users.id", primary_key=True, ondelete="CASCADE")
     car_id:  int = Field(foreign_key="cars.id",
                          primary_key=True, ondelete="CASCADE")
     seat_position: int
