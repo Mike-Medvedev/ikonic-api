@@ -62,13 +62,34 @@ class TripUserLink(SQLModel, table=True):
     paid: Optional[int] = None
 
 
+class CarBase(SQLModel):
+    owner: uuid.UUID
+    seat_count: int = 4
+    passengers: Optional[List["Passenger"]] = []
+
+
+class CarCreate(CarBase):
+    pass
+
+
+class CarUpdate(CarBase):
+    trip_id: Optional[int]
+    owner: Optional[uuid.UUID]
+    seat_count: Optional[int] = 4
+
+
 class Car(SQLModel, table=True):
     __tablename__ = "cars"
     id: Optional[int] = Field(default=None, primary_key=True)
     trip_id: int = Field(foreign_key="trips.id", ondelete="CASCADE")
-    owner: uuid.UUID = Field(foreign_key="users.id")
+    owner: uuid.UUID = Field(foreign_key="auth.users.id")
     passengers: List["Passenger"] = Relationship()
     seat_count: int = 4
+
+
+class CarPublic(CarBase):
+    id: int
+    trip_id: int
 
 
 class Passenger(SQLModel, table=True):
