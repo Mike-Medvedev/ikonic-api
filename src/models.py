@@ -53,6 +53,11 @@ class TripUpdate(SQLModel):
     mountain: Optional[str] = None
 
 
+class TripUserLinkBase(SQLModel):
+    trsvp: Optional[str] = None
+    paid: Optional[int] = None
+
+
 class TripUserLink(SQLModel, table=True):
     __tablename__ = "trips_users_map"
     trip_id: int = Field(primary_key=True, foreign_key="trips.id")
@@ -60,6 +65,18 @@ class TripUserLink(SQLModel, table=True):
     user_id: uuid.UUID = Field(primary_key=True, foreign_key="auth.users.id")
     rsvp: Optional[str] = None
     paid: Optional[int] = None
+
+
+class TripUserLinkRsvp(TripUserLinkBase):
+    pass
+
+
+class Rsvp(BaseModel):
+    deep_link: str
+
+
+class InviteCreate(SQLModel):
+    user_id: uuid.UUID
 
 
 class CarBase(SQLModel):

@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     VONAGE_API_KEY: str
     VONAGE_API_SECRET: str
     TO_NUMBER: str
-    VONAGE_BRAND_NAME: str
+    VONAGE_NUMBER: str
 
 
 settings = Settings()

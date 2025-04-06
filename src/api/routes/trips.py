@@ -1,8 +1,8 @@
 from typing import List
 import uuid
 from fastapi import APIRouter, HTTPException
-from src.api.deps import SessionDep
-from src.models import Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car, CarCreate, CarPublic
+from src.api.deps import SessionDep, VonageDep, send_sms_invte
+from src.models import Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car, CarCreate, CarPublic, TripUserLinkRsvp, Rsvp, User
 from sqlmodel import select
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -92,3 +92,31 @@ def delete_car(trip_id: int, car_id: int, session: SessionDep):
     session.delete(car)
     session.commit()
     return {"data": True}
+
+
+@router.post('/{trip_id}/invites/{user_id}', response_model=DTO[TripUserLink], status_code=201)
+def invite_user(trip_id: int, user_id: str, rsvp: Rsvp,  session: SessionDep, vonage: VonageDep):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User Not Found")
+    response = send_sms_invte(user.phone, rsvp.deep_link, vonage)
+    if not response:
+        raise HTTPException(status_code=400, detail="Error Sending SMS")
+    link = TripUserLink(trip_id=trip_id, user_id=uuid.UUID(user_id))
+    session.add(link)
+    session.commit()
+    session.refresh(link)
+    return {"data": link}
+
+
+@router.patch('/{trip_id}/invites/{user_id}', response_model=DTO[TripUserLink])
+def create_rsvp(trip_id: int, user_id: str, res: TripUserLinkRsvp, session: SessionDep):
+    link = session.get(TripUserLink, (trip_id, uuid.UUID(user_id)))
+    if not link:
+        raise HTTPException(status_code=404, detail="Link Not Found")
+    rsvp = res.model_dump(exclude_unset=True)
+    updated_link = link.sqlmodel_update(rsvp)
+    session.add(updated_link)
+    session.commit()
+    session.refresh(updated_link)
+    return {"data": updated_link}

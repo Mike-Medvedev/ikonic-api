@@ -49,7 +49,13 @@ learnings from from fastapi template
 
 ## DI (Dependency Injection)
 
-1. FastAPI DI system allows to declare dependencies as Depends() in endpoint functions
-2. Under the hood, FastAPI will call those dependency functions (or classes) before your path operation runs, inject their return values, and handle cleanup (for generator dependencies).
-3. can be used in Annotated Type Annotated[type, Depends()] or set Annotated[type, Depends()]
+### 1. DEPENDECY INVERSION PRINCIPLE: You “inject” the concrete implementation like get_vonage_client() into your function via its signature (e.g. using Depends(get_vonage_client)) rather than instantiating it inside.
+
+# This follows the concept of Programming To An Interface, get_vonage_client is a contract, thats all endpoint cares about, exposinge the .send() method
+
+-----> endpoint should not instantiate a client, inject it so its implementation is de coupled from endpoint, easier testing/ swapping
+
+2. FastAPI DI system allows to declare dependencies as Depends() in endpoint functions
+3. Under the hood, FastAPI will call those dependency functions (or classes) before your path operation runs, inject their return values, and handle cleanup (for generator dependencies).
+4. can be used in Annotated Type Annotated[type, Depends()] or set Annotated[type, Depends()]
    to a type -> SessionDB = Annotated[Session, Depends(get_db)]
