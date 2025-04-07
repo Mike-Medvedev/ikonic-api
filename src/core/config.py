@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     )
 
     PROJECT_NAME: str
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
 
     FRONTEND_HOST: str = "http://localhost:5173"
 

@@ -46,6 +46,7 @@ learnings from from fastapi template
 10. Different models are used for different parts -> UserPublic is what API returns, UserUpdate is what API recieves when client sends User Update, different types
 11. Supabase is managed PostgresSQL db on cloud and psycopg used as driver to connect db to sqlalchemy engine
 12. information_schema for querying schema info in postgres,
+13. RelationShips() and BackPopulate used to sync and auto query models, so cars have list of passengers, you can call cars.passengers and have it query list of passengers for you, and also if you creat a passenger, back populate list of passengers in the car
 
 ## DI (Dependency Injection)
 
