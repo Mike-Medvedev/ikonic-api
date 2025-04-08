@@ -73,7 +73,7 @@ class TripUserLinkRsvp(TripUserLinkBase):
     pass
 
 
-class Rsvp(BaseModel):
+class DeepLink(BaseModel):
     deep_link: str
 
 

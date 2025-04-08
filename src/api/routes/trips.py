@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from src.api.deps import SessionDep, VonageDep, SecurityDep, get_current_user, send_sms_invte
-from src.models import SortedUsersResponse, Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car, CarCreate, CarPublic, TripUserLinkRsvp, Rsvp, User, Passenger, PassengerCreate
+from src.models import SortedUsersResponse, Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car, CarCreate, CarPublic, TripUserLinkRsvp, DeepLink, User, Passenger, PassengerCreate
 from sqlmodel import select
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -114,17 +114,14 @@ def get_invited_users(trip_id: int, session: SessionDep):
 
 
 @router.post('/{trip_id}/invites/{user_id}', response_model=DTO[TripUserLink], status_code=201)
-def invite_user(trip_id: int, user: SecurityDep, rsvp: Rsvp,  session: SessionDep, vonage: VonageDep):
-    user = session.get(User, user.id)
+def invite_user(trip_id: int, user_id: str, user: SecurityDep, deep_link: DeepLink,  session: SessionDep, vonage: VonageDep):
+    user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User Not Found")
-    response = send_sms_invte(user.phone, rsvp.deep_link, vonage)
+    response = send_sms_invte(user.phone, deep_link.deep_link, vonage)
     if not response:
         raise HTTPException(status_code=400, detail="Error Sending SMS")
     link = TripUserLink(trip_id=trip_id, user_id=user.id)
-    session.add(link)
-    session.commit()
-    session.refresh(link)
     return {"data": link}
 
 
