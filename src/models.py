@@ -35,6 +35,7 @@ class TripBase(SQLModel):
 class Trip(TripBase, table=True):
     __tablename__ = "trips"
     id: Optional[int] = Field(default=None, primary_key=True)
+    owner: uuid.UUID
     cars: List["Car"] = Relationship()
 
 
@@ -44,6 +45,7 @@ class TripCreate(TripBase):
 
 class TripPublic(TripBase):
     id: int
+    owner: uuid.UUID
 
 
 class TripUpdate(SQLModel):
@@ -80,7 +82,6 @@ class InviteCreate(SQLModel):
 
 
 class CarBase(SQLModel):
-    owner: uuid.UUID
     seat_count: int = 4
     passengers: Optional[List["Passenger"]] = []
 
@@ -107,6 +108,7 @@ class Car(SQLModel, table=True):
 class CarPublic(CarBase):
     id: int
     trip_id: int
+    owner: uuid.UUID
 
 
 class PassengerBase(SQLModel):
@@ -126,3 +128,10 @@ class PassengerCreate(PassengerBase):
     # user_id: uuid.UUID
     # car_id: int
     pass
+
+
+class SortedUsersResponse(BaseModel):
+    accepted: List[User] = []
+    pending: List[User] = []
+    uncertain: List[User] = []
+    declined: List[User] = []

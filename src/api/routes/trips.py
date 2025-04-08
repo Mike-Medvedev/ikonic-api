@@ -1,20 +1,20 @@
 from typing import List
-import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from src.api.deps import SessionDep, VonageDep, SecurityDep, get_current_user, send_sms_invte
-from src.models import Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car, CarCreate, CarPublic, TripUserLinkRsvp, Rsvp, User, Passenger, PassengerCreate
+from src.models import SortedUsersResponse, Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car, CarCreate, CarPublic, TripUserLinkRsvp, Rsvp, User, Passenger, PassengerCreate
 from sqlmodel import select
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
 
-@router.post('/', response_model=DTO[TripPublic], dependencies=[Depends(get_current_user)])
-async def create_trip(trip: TripCreate, session: SessionDep):
-    hardcoded_user = uuid.UUID("e25b2f98-f6e0-4a54-84f6-16f42cb849b4")
+@router.post('/', response_model=DTO[TripPublic])
+async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep):
     valid_trip = Trip.model_validate(trip)
     session.add(valid_trip)
     session.flush()
-    link = TripUserLink(trip_id=valid_trip.id, user_id=hardcoded_user)
+    link = TripUserLink(trip_id=valid_trip.id,
+                        # map new trip to owner and init rsvp to "accepted"
+                        user_id=user.id, rsvp="accepted")
     session.add(link)
     session.commit()
     return {"data": valid_trip}
@@ -49,7 +49,7 @@ async def update_trip(trip: TripUpdate, id: int, session: SessionDep):
 
 
 @router.delete('/{id}', dependencies=[Depends(get_current_user)])
-def delete_post(id: int, session: SessionDep):
+def delete_trip(id: int, session: SessionDep):
     trip_db = session.get(Trip, id)
     if not trip_db:
         raise HTTPException(status_code=404, detail="Trip Not Found")
@@ -93,15 +93,24 @@ def delete_car(trip_id: int, car_id: int, session: SessionDep):
     return {"data": True}
 
 
-@router.get('/{trip_id}/invites', response_model=DTO[List[User]], dependencies=[Depends(get_current_user)])
+@router.get('/{trip_id}/invites', response_model=DTO[SortedUsersResponse], dependencies=[Depends(get_current_user)])
 def get_invited_users(trip_id: int, session: SessionDep):
     statement = (
-        select(User)
+        select(User, TripUserLink.rsvp)
         .join(TripUserLink, TripUserLink.user_id == User.id)
         .where(TripUserLink.trip_id == trip_id)
     )
     users = session.exec(statement).all()
-    return {"data": users}
+    print(users)
+    sorted_users = {"accepted": [], "pending": [],
+                    "uncertain": [], "declined": []}
+
+    for user, rsvp in users:
+        if not rsvp:
+            continue
+        sorted_users[rsvp].append(user)
+    print(sorted_users)
+    return {"data": sorted_users}
 
 
 @router.post('/{trip_id}/invites/{user_id}', response_model=DTO[TripUserLink], status_code=201)
@@ -112,7 +121,7 @@ def invite_user(trip_id: int, user: SecurityDep, rsvp: Rsvp,  session: SessionDe
     response = send_sms_invte(user.phone, rsvp.deep_link, vonage)
     if not response:
         raise HTTPException(status_code=400, detail="Error Sending SMS")
-    link = TripUserLink(trip_id=trip_id, user_id=uuid.UUID(user.id))
+    link = TripUserLink(trip_id=trip_id, user_id=user.id)
     session.add(link)
     session.commit()
     session.refresh(link)

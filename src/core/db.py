@@ -4,7 +4,7 @@ from src.models import *
 
 
 # print(str(settings.SQLALCHEMY_DATABASE_URI))
-engine = create_engine(url=str(settings.SQLALCHEMY_DATABASE_URI), echo=True)
+engine = create_engine(url=str(settings.SQLALCHEMY_DATABASE_URI))
 
 
 def init_db():
