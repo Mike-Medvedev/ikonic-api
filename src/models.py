@@ -23,6 +23,8 @@ class User(SQLModel, table=True):
     phone: str = Field(foreign_key="auth.users.phone")
     firstname: Optional[str]
     lastname: Optional[str]
+    owned_trips: List["Trip"] = Relationship(back_populates="owner_user")
+    owned_cars: List["Car"] = Relationship(back_populates="owner_user")
 
 
 class TripBase(SQLModel):
@@ -35,8 +37,9 @@ class TripBase(SQLModel):
 class Trip(TripBase, table=True):
     __tablename__ = "trips"
     id: Optional[int] = Field(default=None, primary_key=True)
-    owner: uuid.UUID
+    owner: uuid.UUID = Field(foreign_key="public.users.id")
     cars: List["Car"] = Relationship()
+    owner_user: Optional[User] = Relationship(back_populates="owned_trips")
 
 
 class TripCreate(TripBase):
@@ -45,7 +48,7 @@ class TripCreate(TripBase):
 
 class TripPublic(TripBase):
     id: int
-    owner: uuid.UUID
+    owner: User
 
 
 class TripUpdate(SQLModel):
@@ -64,7 +67,7 @@ class TripUserLink(SQLModel, table=True):
     __tablename__ = "trips_users_map"
     trip_id: int = Field(primary_key=True, foreign_key="trips.id")
     # no need to make fk on supabase auth.users, let db handle
-    user_id: uuid.UUID = Field(primary_key=True, foreign_key="auth.users.id")
+    user_id: uuid.UUID = Field(primary_key=True, foreign_key="public.users.id")
     rsvp: Optional[str] = None
     paid: Optional[int] = None
 
@@ -100,15 +103,18 @@ class Car(SQLModel, table=True):
     __tablename__ = "cars"
     id: Optional[int] = Field(default=None, primary_key=True)
     trip_id: int = Field(foreign_key="trips.id", ondelete="CASCADE")
-    owner: uuid.UUID = Field(foreign_key="auth.users.id")
+    owner: uuid.UUID = Field(foreign_key="public.users.id")
     passengers: List["Passenger"] = Relationship(back_populates="car")
     seat_count: int = 4
+    owner_user: Optional[User] = Relationship(back_populates="owned_cars")
 
 
 class CarPublic(CarBase):
     id: int
     trip_id: int
-    owner: uuid.UUID
+    owner: User
+    passengers: Optional[List[User]] = []
+    seat_count: int = 4
 
 
 class PassengerBase(SQLModel):
@@ -118,7 +124,7 @@ class PassengerBase(SQLModel):
 class Passenger(PassengerBase, table=True):
     __tablename__ = "passengers"
     user_id: uuid.UUID = Field(
-        foreign_key="auth.users.id", primary_key=True, ondelete="CASCADE")
+        foreign_key="public.users.id", primary_key=True, ondelete="CASCADE")
     car_id:  int = Field(foreign_key="cars.id",
                          primary_key=True, ondelete="CASCADE")
     car: Car = Relationship(back_populates="passengers")

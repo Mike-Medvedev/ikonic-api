@@ -3,11 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from src.api.deps import SessionDep, VonageDep, SecurityDep, get_current_user, send_sms_invte
 from src.models import SortedUsersResponse, Trip, TripCreate, TripUpdate, TripUserLink, TripPublic, DTO, Car, CarCreate, CarPublic, TripUserLinkRsvp, DeepLink, User, Passenger, PassengerCreate
 from sqlmodel import select
+from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
 
-@router.post('/', response_model=DTO[TripPublic])
+@router.post('', response_model=DTO[TripPublic])
 async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep):
     valid_trip = Trip.model_validate(trip)
     session.add(valid_trip)
@@ -17,35 +18,67 @@ async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep):
                         user_id=user.id, rsvp="accepted")
     session.add(link)
     session.commit()
-    return {"data": valid_trip}
+    owner = session.get(User, user.id)
+    return {"data": TripPublic(**trip.model_dump(exclude={"owner"}), owner=owner)}
 
 
-@router.get('/', response_model=DTO[List[TripPublic]])
+@router.get('', response_model=DTO[List[TripPublic]])
 def get_trips(session: SessionDep, user: SecurityDep):
-    query = select(Trip).join(TripUserLink, Trip.id == TripUserLink.trip_id).where(
-        TripUserLink.user_id == user.id)
+    query = (
+        select(Trip)
+        .join(TripUserLink, Trip.id == TripUserLink.trip_id)
+        .options(selectinload(Trip.owner_user))
+        .where(TripUserLink.user_id == user.id)
+    )
     trips = session.exec(query).all()
-    return {"data": trips}
+
+    trips_public = [
+        TripPublic(**trip.model_dump(exclude={"owner"}), owner=trip.owner_user)
+        for trip in trips
+    ]
+
+    return {"data": trips_public}
 
 
 @router.get('/{id}', response_model=DTO[TripPublic], dependencies=[Depends(get_current_user)])
 async def get_trip(id: int, session: SessionDep):
-    trip = session.get(Trip, id)
-    return {"data": trip}
+    query = select(Trip).options(selectinload(
+        Trip.owner_user)).where(Trip.id == id)
+    trip = session.exec(query).one_or_none()
+
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    trip_public = TripPublic(
+        **trip.model_dump(exclude={"owner"}), owner=trip.owner_user)
+    return {"data": trip_public}
 
 
 @router.patch('/{id}', response_model=DTO[TripPublic], dependencies=[Depends(get_current_user)])
 async def update_trip(trip: TripUpdate, id: int, session: SessionDep):
     trip_db = session.get(Trip, id)
-    if not id:
-        raise HTTPException(
-            status_code=404, detail="Error Trip To Update Not Found")
+    if not trip_db:
+        raise HTTPException(status_code=404, detail="Trip to update not found")
+
     trip_update_data = trip.model_dump(exclude_unset=True)
     trip_db.sqlmodel_update(trip_update_data)
     session.add(trip_db)
     session.commit()
     session.refresh(trip_db)
-    return {"data": trip_db}
+
+    # Re-query with eager loading to get the owner_user relationship.
+    query = select(Trip).where(Trip.id == id).options(
+        selectinload(Trip.owner_user))
+    updated_trip = session.exec(query).one_or_none()
+    if not updated_trip:
+        raise HTTPException(
+            status_code=404, detail="Trip not found after update")
+
+    response_trip = TripPublic(
+        **updated_trip.model_dump(exclude={"owner"}),
+        owner=updated_trip.owner_user
+    )
+    return {"data": response_trip}
 
 
 @router.delete('/{id}', dependencies=[Depends(get_current_user)])
@@ -58,10 +91,20 @@ def delete_trip(id: int, session: SessionDep):
     return {"data": True}
 
 
-@router.get('/{id}/cars', response_model=DTO[List[Car]], dependencies=[Depends(get_current_user)])
+@router.get('/{id}/cars', response_model=DTO[List[CarPublic]], dependencies=[Depends(get_current_user)])
 def get_cars_for_trip(id: int, session: SessionDep):
-    cars = session.exec(select(Car).join(Trip).where(Trip.id == id)).all()
-    return {"data": list(cars)}
+    cars = session.exec(
+        select(Car)
+        .where(Car.trip_id == id)
+        .options(selectinload(Car.owner_user))
+    ).all()
+
+    cars_public = [
+        CarPublic(**car.model_dump(exclude={"owner"}), owner=car.owner_user)
+        for car in cars
+    ]
+
+    return {"data": cars_public}
 
 
 @router.post('/{id}/cars', response_model=DTO[CarPublic], dependencies=[Depends(get_current_user)])
@@ -69,8 +112,13 @@ def create_car(id: int, car: CarCreate, session: SessionDep):
     new_car = Car(**car.model_dump(), trip_id=id)
     session.add(new_car)
     session.commit()
-    session.refresh(new_car)
-    return {"data": new_car}
+    # Refresh to load both the new Car's data and its owner relationship.
+    session.refresh(new_car, attribute_names=["owner_user"])
+
+    # Build and return the CarPublic representation.
+    car_public = CarPublic(
+        **new_car.model_dump(exclude={"owner"}), owner=new_car.owner_user)
+    return {"data": car_public}
 
 
 @router.get('/{trip_id}/cars/{car_id}', dependencies=[Depends(get_current_user)])
