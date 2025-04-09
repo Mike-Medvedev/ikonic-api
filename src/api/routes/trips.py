@@ -107,9 +107,9 @@ def get_cars_for_trip(id: int, session: SessionDep):
     return {"data": cars_public}
 
 
-@router.post('/{id}/cars', response_model=DTO[CarPublic], dependencies=[Depends(get_current_user)])
-def create_car(id: int, car: CarCreate, session: SessionDep):
-    new_car = Car(**car.model_dump(), trip_id=id)
+@router.post('/{id}/cars', response_model=DTO[CarPublic])
+def create_car(id: int, car: CarCreate, session: SessionDep, user: SecurityDep):
+    new_car = Car(**car.model_dump(), trip_id=id, owner=user.id)
     session.add(new_car)
     session.commit()
     # Refresh to load both the new Car's data and its owner relationship.

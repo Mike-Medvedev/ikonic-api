@@ -16,6 +16,5 @@ def get_users(session: SessionDep):
 
 @router.get('/{id}', dependencies=[Depends(get_current_user)])
 def get_user_by_id(id: str, session: SessionDep):
-    _id = uuid.UUID(id)
-    user = session.get(User, _id)
+    user = session.get(User, id)
     return user
