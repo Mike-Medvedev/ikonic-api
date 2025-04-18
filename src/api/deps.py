@@ -22,7 +22,7 @@ def get_db() -> Generator[Session]:
 SessionDep = Annotated[Session, Depends(get_db)]
 
 
-@lru_cache(maxsize=1)  # caches instance creating a singleton
+@lru_cache(maxsize=1)  # caches function result
 def get_vonage_client() -> Vonage:
     return Vonage(Auth(
         api_key=settings.VONAGE_API_KEY,

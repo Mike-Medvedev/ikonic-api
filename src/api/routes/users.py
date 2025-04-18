@@ -14,7 +14,8 @@ def get_users(session: SessionDep):
     return {"data": list(users)}
 
 
-@router.get('/{id}', dependencies=[Depends(get_current_user)])
+@router.get('/{id}', dependencies=[Depends(get_current_user)], response_model=DTO[User])
 def get_user_by_id(id: str, session: SessionDep):
     user = session.get(User, id)
-    return user
+    print(user)
+    return {"data": user}

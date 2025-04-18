@@ -10,7 +10,7 @@ learnings from from fastapi template
 6. api folder for actual endpoints/routes (controller)
 7. services for business logic in seperate class (services)
 8. db operations in data access layer
-9. Implement DTO and DAO layers to improve architecture. DTO -> data crossing from server to client , DAO -> encapusalte ORM operations USERDao
+9. Implement DTO and DAO layers to improve architecture. DTO -> data crossing from server to client , DAO -> encapsulate ORM operations USERDao
 
 ## SETTING/CONFIG Learnings
 
@@ -25,10 +25,10 @@ learnings from from fastapi template
 ## Routing/OpenAPI learnings
 
 1. endpoint names are nouns not verbs i.e (/users ) AVOID (/getUsers)
-2. use pluralals for resource names -> /items
+2. use plurals for resource names -> /items
 3. nest related resources under parent -> /users/{userId}/orders/{orderId}
 4. filtering/pagination/sorting go in query param -> GET /projects?status=active&page=2&per_page=20
-5. keep words lower case and hyphentated for multiple words -> /user-profiles
+5. keep words lower case and hyphenated for multiple words -> /user-profiles
 6. use correct http method -> (put and patch)
 7. api/v1 prepended to all routes per OpenAPI spec, making backwards compatibility easy -> api/v2
 
