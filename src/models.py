@@ -1,8 +1,8 @@
-from typing import Optional, List
-from pydantic import BaseModel
-from datetime import date
 import uuid
-from sqlmodel import Relationship, SQLModel, Field
+from datetime import date
+
+from pydantic import BaseModel
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class DTO[T](BaseModel):
@@ -22,10 +22,10 @@ class User(SQLModel, table=True):
         primary_key=True, foreign_key="auth.users.id", ondelete="CASCADE"
     )
     phone: str = Field(foreign_key="auth.users.phone")
-    firstname: Optional[str]
-    lastname: Optional[str]
-    owned_trips: List["Trip"] = Relationship(back_populates="owner_user")
-    owned_cars: List["Car"] = Relationship(back_populates="owner_user")
+    firstname: str | None
+    lastname: str | None
+    owned_trips: list["Trip"] = Relationship(back_populates="owner_user")
+    owned_cars: list["Car"] = Relationship(back_populates="owner_user")
 
 
 class TripBase(SQLModel):
@@ -37,10 +37,10 @@ class TripBase(SQLModel):
 
 class Trip(TripBase, table=True):
     __tablename__ = "trips"
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     owner: uuid.UUID = Field(foreign_key="public.users.id")
-    cars: List["Car"] = Relationship()
-    owner_user: Optional[User] = Relationship(back_populates="owned_trips")
+    cars: list["Car"] = Relationship()
+    owner_user: User | None = Relationship(back_populates="owned_trips")
 
 
 class TripCreate(TripBase):
@@ -53,15 +53,15 @@ class TripPublic(TripBase):
 
 
 class TripUpdate(SQLModel):
-    title: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    mountain: Optional[str] = None
+    title: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    mountain: str | None = None
 
 
 class TripUserLinkBase(SQLModel):
-    rsvp: Optional[str] = None
-    paid: Optional[int] = None
+    rsvp: str | None = None
+    paid: int | None = None
 
 
 class TripUserLink(SQLModel, table=True):
@@ -69,8 +69,8 @@ class TripUserLink(SQLModel, table=True):
     trip_id: int = Field(primary_key=True, foreign_key="trips.id")
     # no need to make fk on supabase auth.users, let db handle
     user_id: uuid.UUID = Field(primary_key=True, foreign_key="public.users.id")
-    rsvp: Optional[str] = None
-    paid: Optional[int] = None
+    rsvp: str | None = None
+    paid: int | None = None
 
 
 class TripUserLinkRsvp(TripUserLinkBase):
@@ -87,7 +87,7 @@ class InviteCreate(SQLModel):
 
 class CarBase(SQLModel):
     seat_count: int = 4
-    passengers: Optional[List["Passenger"]] = []
+    passengers: list["Passenger"] | None = []
 
 
 class CarCreate(CarBase):
@@ -95,26 +95,26 @@ class CarCreate(CarBase):
 
 
 class CarUpdate(CarBase):
-    trip_id: Optional[int]
-    owner: Optional[uuid.UUID]
-    seat_count: Optional[int] = 4
+    trip_id: int | None
+    owner: uuid.UUID | None
+    seat_count: int | None = 4
 
 
 class Car(SQLModel, table=True):
     __tablename__ = "cars"
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     trip_id: int = Field(foreign_key="trips.id", ondelete="CASCADE")
     owner: uuid.UUID = Field(foreign_key="public.users.id")
-    passengers: List["Passenger"] = Relationship(back_populates="car")
+    passengers: list["Passenger"] = Relationship(back_populates="car")
     seat_count: int = 4
-    owner_user: Optional[User] = Relationship(back_populates="owned_cars")
+    owner_user: User | None = Relationship(back_populates="owned_cars")
 
 
 class CarPublic(CarBase):
     id: int
     trip_id: int
     owner: User
-    passengers: Optional[List[User]] = []
+    passengers: list[User] | None = []
     seat_count: int = 4
 
 
@@ -132,13 +132,11 @@ class Passenger(PassengerBase, table=True):
 
 
 class PassengerCreate(PassengerBase):
-    # user_id: uuid.UUID
-    # car_id: int
     pass
 
 
 class SortedUsersResponse(BaseModel):
-    accepted: List[User] = []
-    pending: List[User] = []
-    uncertain: List[User] = []
-    declined: List[User] = []
+    accepted: list[User] = []
+    pending: list[User] = []
+    uncertain: list[User] = []
+    declined: list[User] = []

@@ -3,10 +3,6 @@ from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# def parse_cors(url: str) -> List[str]:
-#     return url
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file="../.env")
 
@@ -30,7 +26,7 @@ class Settings(BaseSettings):
     # makes the function a real field on the model {a: 5, b: 6, c: all_cors_origins}
     @computed_field
     @property  # makes functin avaliable as dot notation foo.bar() -> foo.bar
-    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
+    def sqlalchemy_database_uri(self) -> PostgresDsn:
         return MultiHostUrl.build(
             scheme=self.POSTGRES_SCHEME,
             username=self.POSTGRES_USER,

@@ -1,15 +1,18 @@
+from collections.abc import Generator
 from functools import lru_cache
-from typing import Annotated, Generator
-from sqlmodel import Session
+from typing import Annotated
+
 from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from gotrue.errors import AuthApiError
+from gotrue.types import User
+from sqlmodel import Session
+from supabase import Client, create_client
 from vonage import Auth, Vonage
 from vonage_sms import SmsMessage, SmsResponse
-from src.core.db import engine
+
 from src.core.config import settings
-from supabase import create_client, Client
-from gotrue.types import User
-from gotrue.errors import AuthApiError
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from src.core.db import engine
 
 security = HTTPBearer()
 

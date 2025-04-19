@@ -1,31 +1,34 @@
-from typing import List
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import selectinload
+from sqlmodel import select
+
+logger = logging.getLogger(__name__)
+
 from src.api.deps import (
+    SecurityDep,
     SessionDep,
     VonageDep,
-    SecurityDep,
-    get_current_user,
     send_sms_invte,
 )
 from src.models import (
-    SortedUsersResponse,
-    Trip,
-    TripCreate,
-    TripUpdate,
-    TripUserLink,
-    TripPublic,
     DTO,
     Car,
     CarCreate,
     CarPublic,
-    TripUserLinkRsvp,
     DeepLink,
-    User,
     Passenger,
     PassengerCreate,
+    SortedUsersResponse,
+    Trip,
+    TripCreate,
+    TripPublic,
+    TripUpdate,
+    TripUserLink,
+    TripUserLinkRsvp,
+    User,
 )
-from sqlmodel import select
-from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -47,7 +50,7 @@ async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep):
     return {"data": TripPublic(**trip.model_dump(exclude={"owner"}), owner=owner)}
 
 
-@router.get("", response_model=DTO[List[TripPublic]])
+@router.get("", response_model=DTO[list[TripPublic]])
 def get_trips(session: SessionDep, user: SecurityDep):
     query = (
         select(Trip)
@@ -66,10 +69,14 @@ def get_trips(session: SessionDep, user: SecurityDep):
 
 
 @router.get(
-    "/{id}", response_model=DTO[TripPublic], dependencies=[Depends(get_current_user)]
+    "/{trip_id}",
+    response_model=DTO[TripPublic],
+    dependencies=[SecurityDep],
 )
-async def get_trip(id: int, session: SessionDep):
-    query = select(Trip).options(selectinload(Trip.owner_user)).where(Trip.id == id)
+async def get_trip(trip_id: int, session: SessionDep):
+    query = (
+        select(Trip).options(selectinload(Trip.owner_user)).where(Trip.id == trip_id)
+    )
     trip = session.exec(query).one_or_none()
 
     if not trip:
@@ -82,10 +89,12 @@ async def get_trip(id: int, session: SessionDep):
 
 
 @router.patch(
-    "/{id}", response_model=DTO[TripPublic], dependencies=[Depends(get_current_user)]
+    "/{trip_id}",
+    response_model=DTO[TripPublic],
+    dependencies=[SecurityDep],
 )
-async def update_trip(trip: TripUpdate, id: int, session: SessionDep):
-    trip_db = session.get(Trip, id)
+async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep):
+    trip_db = session.get(Trip, trip_id)
     if not trip_db:
         raise HTTPException(status_code=404, detail="Trip to update not found")
 
@@ -107,9 +116,9 @@ async def update_trip(trip: TripUpdate, id: int, session: SessionDep):
     return {"data": response_trip}
 
 
-@router.delete("/{id}", dependencies=[Depends(get_current_user)])
-def delete_trip(id: int, session: SessionDep):
-    trip_db = session.get(Trip, id)
+@router.delete("/{trip_id}", dependencies=[SecurityDep])
+def delete_trip(trip_id: int, session: SessionDep):
+    trip_db = session.get(Trip, trip_id)
     if not trip_db:
         raise HTTPException(status_code=404, detail="Trip Not Found")
     session.delete(trip_db)
@@ -118,13 +127,13 @@ def delete_trip(id: int, session: SessionDep):
 
 
 @router.get(
-    "/{id}/cars",
-    response_model=DTO[List[CarPublic]],
-    dependencies=[Depends(get_current_user)],
+    "/{trip_id}/cars",
+    response_model=DTO[list[CarPublic]],
+    dependencies=[SecurityDep],
 )
-def get_cars_for_trip(id: int, session: SessionDep):
+def get_cars_for_trip(trip_id: int, session: SessionDep):
     cars = session.exec(
-        select(Car).where(Car.trip_id == id).options(selectinload(Car.owner_user))
+        select(Car).where(Car.trip_id == trip_id).options(selectinload(Car.owner_user))
     ).all()
 
     cars_public = [
@@ -135,9 +144,9 @@ def get_cars_for_trip(id: int, session: SessionDep):
     return {"data": cars_public}
 
 
-@router.post("/{id}/cars", response_model=DTO[CarPublic])
-def create_car(id: int, car: CarCreate, session: SessionDep, user: SecurityDep):
-    new_car = Car(**car.model_dump(), trip_id=id, owner=user.id)
+@router.post("/{trip_id}/cars", response_model=DTO[CarPublic])
+def create_car(trip_id: int, car: CarCreate, session: SessionDep, user: SecurityDep):
+    new_car = Car(**car.model_dump(), trip_id=trip_id, owner=user.id)
     session.add(new_car)
     session.commit()
     # Refresh to load both the new Car's data and its owner relationship.
@@ -150,7 +159,7 @@ def create_car(id: int, car: CarCreate, session: SessionDep, user: SecurityDep):
     return {"data": car_public}
 
 
-@router.get("/{trip_id}/cars/{car_id}", dependencies=[Depends(get_current_user)])
+@router.get("/{trip_id}/cars/{car_id}", dependencies=[SecurityDep])
 def get_car_by_id(trip_id: int, car_id: int, session: SessionDep):
     car = session.exec(
         select(Car).where(Car.trip_id == trip_id, Car.id == car_id)
@@ -160,7 +169,7 @@ def get_car_by_id(trip_id: int, car_id: int, session: SessionDep):
     return {"data": car}
 
 
-@router.delete("/{trip_id}/cars/{car_id}", dependencies=[Depends(get_current_user)])
+@router.delete("/{trip_id}/cars/{car_id}", dependencies=[SecurityDep])
 def delete_car(trip_id: int, car_id: int, session: SessionDep):
     query = select(Car).where(Car.trip_id == trip_id, Car.id == car_id)
     car = session.exec(query).first()
@@ -174,7 +183,7 @@ def delete_car(trip_id: int, car_id: int, session: SessionDep):
 @router.get(
     "/{trip_id}/invites",
     response_model=DTO[SortedUsersResponse],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[SecurityDep],
 )
 def get_invited_users(trip_id: int, session: SessionDep):
     statement = (
@@ -183,24 +192,26 @@ def get_invited_users(trip_id: int, session: SessionDep):
         .where(TripUserLink.trip_id == trip_id)
     )
     users = session.exec(statement).all()
-    print(users)
+    logger.info(users)
     sorted_users = {"accepted": [], "pending": [], "uncertain": [], "declined": []}
 
     for user, rsvp in users:
         if not rsvp:
             continue
         sorted_users[rsvp].append(user)
-    print(sorted_users)
+    logger.info(sorted_users)
     return {"data": sorted_users}
 
 
 @router.post(
-    "/{trip_id}/invites/{user_id}", response_model=DTO[TripUserLink], status_code=201
+    "/{trip_id}/invites/{user_id}",
+    response_model=DTO[TripUserLink],
+    status_code=201,
+    dependencies=[Depends(SecurityDep)],
 )
 def invite_user(
     trip_id: int,
     user_id: str,
-    user: SecurityDep,
     deep_link: DeepLink,
     session: SessionDep,
     vonage: VonageDep,
@@ -211,15 +222,17 @@ def invite_user(
     response = send_sms_invte(user.phone, deep_link.deep_link, vonage)
     if not response:
         raise HTTPException(status_code=400, detail="Error Sending SMS")
-    link = TripUserLink(trip_id=trip_id, user_id=user.id)
+    link = TripUserLink(trip_id=trip_id, user_id=user_id)
     return {"data": link}
 
 
-@router.patch("/{trip_id}/invites/{user_id}", response_model=DTO[TripUserLink])
-def create_rsvp(
-    trip_id: int, user: SecurityDep, res: TripUserLinkRsvp, session: SessionDep
-):
-    link = session.get(TripUserLink, (trip_id, user.id))
+@router.patch(
+    "/{trip_id}/invites/{user_id}",
+    response_model=DTO[TripUserLink],
+    dependencies=[Depends(SecurityDep)],
+)
+def create_rsvp(trip_id: int, user_id: str, res: TripUserLinkRsvp, session: SessionDep):
+    link = session.get(TripUserLink, (trip_id, user_id))
     if not link:
         raise HTTPException(status_code=404, detail="Link Not Found")
     rsvp = res.model_dump(exclude_unset=True)
@@ -233,7 +246,7 @@ def create_rsvp(
 @router.post(
     "/{trip_id}/cars/{car_id}/passengers",
     response_model=DTO[PassengerCreate],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[SecurityDep],
 )
 def add_passenger(
     trip_id: int,
@@ -253,15 +266,15 @@ def add_passenger(
     session.add(new_passenger)
     session.commit()
     session.refresh(new_passenger)
-    print(car.passengers)
+    logger.info(car.passengers)
     return {"data": new_passenger}
 
 
-@router.get("/{trip_id}/cars/{car_id}/passengers", response_model=DTO[List[Passenger]])
+@router.get("/{trip_id}/cars/{car_id}/passengers", response_model=DTO[list[Passenger]])
 def get_passengers(trip_id: int, car_id: int, session: SessionDep):
     car = session.get(Car, car_id)
     if not car or car.trip_id != trip_id:
         raise HTTPException(404, "Car not found on this trip")
     session.refresh(car)
-    print(f"printing car {car}")
+    logger.info("printing car %s", car)
     return {"data": car.passengers}

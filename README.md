@@ -99,3 +99,16 @@ learnings from from fastapi template
    the correct binary is used (OS agonistic), etc
 4. Pyproject.toml is completely flexible and dev tools assign their own config to the toml. Like [project.ruff] is a custom table
    that ruff expects
+
+## Git Hooks
+
+1. You can use a library like pre-commit to hook into git lifecycle and run code
+2. To ensure code quality, run linting and formatting pre commit so that all code pushed to the repo follows the certain guidelines
+
+## Logging
+
+1. Pythons logging package allows for application code to return messages to an arbitrary output
+2. INFO outputting some information, DEBUG for debug printing such as variables, WARNING for non fatal events that should be noted,
+   ERROR for non fatal error suppression that indicates a service failed. CRITICAL for events that are fatal and potentially non recoverable
+3. loggers follow a tree structure and can be configured exenstively with basicConfig and dictConfig
+4. scoped module loggers follow getLogger(**name**) convention allows for overriding loger config for a module and inherits from its parent logger

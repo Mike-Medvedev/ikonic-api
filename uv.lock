@@ -523,6 +523,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "rich" },
     { name = "ruff" },
 ]
 
@@ -571,7 +572,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ruff", specifier = ">=0.11.6" }]
+dev = [
+    { name = "rich", specifier = ">=13.9.4" },
+    { name = "ruff", specifier = ">=0.11.6" },
+]
 
 [[package]]
 name = "iniconfig"
