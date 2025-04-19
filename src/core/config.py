@@ -1,4 +1,3 @@
-from typing import List, Annotated
 from pydantic import PostgresDsn, computed_field
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -9,10 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-
-    model_config = SettingsConfigDict(
-        env_file="../.env"
-    )
+    model_config = SettingsConfigDict(env_file="../.env")
 
     PROJECT_NAME: str
     SUPABASE_URL: str

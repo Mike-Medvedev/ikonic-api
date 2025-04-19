@@ -1,6 +1,5 @@
 from sqlmodel import create_engine, SQLModel
 from src.core.config import settings
-from src.models import *
 
 
 # print(str(settings.SQLALCHEMY_DATABASE_URI))

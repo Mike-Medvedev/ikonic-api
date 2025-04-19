@@ -60,3 +60,42 @@ learnings from from fastapi template
 3. Under the hood, FastAPI will call those dependency functions (or classes) before your path operation runs, inject their return values, and handle cleanup (for generator dependencies).
 4. can be used in Annotated Type Annotated[type, Depends()] or set Annotated[type, Depends()]
    to a type -> SessionDB = Annotated[Session, Depends(get_db)]
+
+# Python EcoSystem Learnings
+
+## VENV
+
+1. VENV is a virtual environment in python used to isolate dependencies and python versions to a specific workspace. Python installs packages globally by default, therefore multiple projects will require different versions of packages and theree will be conflicts
+2. Venv has an activate script that puts itself onto the $PATH and references to python or dependencies point to the venv $PATH instead of the global path
+3. Venv contains a bin directory which contains binaries of executables like python or other deps installed, you can run them directly in the CLI. python is usually symlinked to the actual intepreter python3.13 which is the actual python binary
+4. The Lib directory includes sites_packages which contains the actual working directory of installed packages in your workspace (node_modules for python)
+
+## pyproject.toml and drawbacks of requirements.txt and pip install
+
+1. Pip install is the original dependency manager but it doesnt produce a reproducible lock file. requirements.txt is bad, doesnt
+   include sub dependencies or do any resolutions
+2. pyproject.toml is like package.json is contains meta data and lists all the dependencies your project needs. It also contains
+   other project specific data like configs to build the system [build-system] and [projects.scripts] to establish CLI commands in the workspace
+3. The only required tables as part of pep 621 is [project] and [build-system]
+4. PyProject.toml can also specify Dependency Groups like dev or lint which will include groups of packages that can be installed
+   with a single command for things like CI
+
+## package managers
+
+1. A package manager is a tool that is used to manage dependencies in a project.
+2. Its crucial because of the idea that dependencies themselves rely on sub dependencies, and multiple deps may conflict on what version of deps they use.
+3. Package resolution is the recursive process of finding the right version of a dep to satisfy all deps and sub deps. Its an NP-Hard problem at worst case
+4. Package managers will generally use your pyproject.toml to identify which deps should be installed.
+5. Deps are installed -> Dep versions are resolved -> the actual dependency resolutions are written to a lock file and their versions are pinned
+6. LockFile is crucial and submitted to version control to allow anyone to reproduce the exact snapshot of deps and their subdeps & versions
+
+## Dev Tools
+
+1. Dev tools are crucial for creating a consistent and beautiful codebase that users can adopt and maintain a consisten look across
+   all developers
+2. Dev tools like package managers can manage your venv, syncing the pyproject.toml deps to a lock file. They
+   also will manage deps so you use their CLI to add, remove, upgrade packages and run tools.
+3. Use Dev tools like uv or pdm to ensure when you install, or use deps, they are in the context of the env, the correct path,
+   the correct binary is used (OS agonistic), etc
+4. Pyproject.toml is completely flexible and dev tools assign their own config to the toml. Like [project.ruff] is a custom table
+   that ruff expects

@@ -4,7 +4,7 @@ from src.api.routes import users, trips
 api_router = APIRouter()
 
 
-@api_router.get('/')
+@api_router.get("/")
 def main():
     return "Hello World!"
 

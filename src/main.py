@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 from pydantic import BaseModel
 from vonage import Auth, Vonage
-from vonage_sms import SmsMessage, SmsResponse
+from vonage_sms import SmsMessage
 from dotenv import load_dotenv
 import os
 
@@ -186,7 +186,7 @@ def get_invited_users(selectedTrip: int):
     try:
         rows = cursor.execute(
             """
-            SELECT users.*, trips_users_mapping.rsvp, trips_users_mapping.paid 
+            SELECT users.*, trips_users_mapping.rsvp, trips_users_mapping.paid
             FROM users
             JOIN trips_users_mapping ON users.user_id = trips_users_mapping.user_id
             WHERE trips_users_mapping.trip_id = ?
@@ -392,7 +392,7 @@ async def invite_user(request: Request):
         text=f"You Have been invited to a trip, click here to RSVP, {deep_link}",
     )
 
-    response: SmsResponse = client.sms.send(message)
+    client.sms.send(message)
     try:
         ikonic_db_connection = sqlite3.connect("ikonic.db", check_same_thread=False)
         cursor = ikonic_db_connection.cursor()
@@ -475,9 +475,9 @@ def get_cars_for_trip(trip_id: int):
                 """
                 SELECT
                     car_passengers.seat_position,
-                    users.user_id, 
-                    users.firstname, 
-                    users.lastname, 
+                    users.user_id,
+                    users.firstname,
+                    users.lastname,
                     users.phone_number
                 FROM car_passengers
                 JOIN users ON car_passengers.user_id = users.user_id

@@ -1,7 +1,7 @@
 [project]
 name = "ikonic-api"
 version = "0.1.0"
-description = "Add your description here"
+description = "API server for planning and managing snowboard/ski trips, powered by FastAPI and Supabase."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -22,6 +22,7 @@ dependencies = [
     "markdown-it-py==3.0.0",
     "markupsafe==3.0.2",
     "mdurl==0.1.2",
+    "pre-commit>=4.2.0",
     "psycopg>=3.2.6",
     "pydantic==2.10.3",
     "pydantic-core==2.27.1",
@@ -49,4 +50,14 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ruff>=0.11.6",
+]
+
+[project.scripts]
+lint = "cli:lint"
+format = "cli:format"
+
+[tool.ruff]
+exclude = [
+    "**/*.egg-info",
+    "**/*.egg",
 ]
