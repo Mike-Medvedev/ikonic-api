@@ -29,3 +29,22 @@ class InvalidTokenError(Exception):
         if self.request_id is not None:
             message += f" with ID: {request_id}"
         super().__init__(message)
+
+
+class PartialSmsError(Exception):
+    """Exception Raised Raised when not all messages were sent successfully."""
+
+
+class SmsError(Exception):
+    """Exception Raised when SMS error occurs."""
+
+    def __init__(
+        self, resource_type: str = "Resource", request_id: str | None = None
+    ) -> None:
+        """Consructs instance of SMS error with resource type and request id."""
+        self.resource_type = resource_type
+        self.request_id = request_id
+        message = f"{resource_type} Error"
+        if self.request_id is not None:
+            message += f" with ID: {request_id}"
+        super().__init__(message)

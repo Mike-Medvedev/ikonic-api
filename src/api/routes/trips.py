@@ -2,10 +2,11 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
+from core.exceptions import ResourceNotFoundError
 from models.shared import DTO
 from models.trip import Trip, TripCreate, TripPublic, TripUpdate, TripUserLink
 from models.user import User
@@ -51,8 +52,9 @@ async def get_trip(trip_id: int, session: SessionDep) -> dict:
     )
     trip = session.exec(query).one_or_none()
 
+    resource = "Trip"
     if not trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
+        raise ResourceNotFoundError(resource, trip_id)
 
     trip_public = TripPublic(
         **trip.model_dump(exclude={"owner"}), owner=trip.owner_user
@@ -87,8 +89,9 @@ async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep) 
 async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep) -> dict:
     """Update existing trip data and refetch updated trip with owner."""
     trip_db = session.get(Trip, trip_id)
+    resource = "Trip"
     if not trip_db:
-        raise HTTPException(status_code=404, detail="Trip to update not found")
+        raise ResourceNotFoundError(resource, trip_id)
 
     trip_update_data = trip.model_dump(exclude_unset=True)
     trip_db.sqlmodel_update(trip_update_data)
@@ -100,7 +103,7 @@ async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep) -> di
     query = select(Trip).where(Trip.id == id).options(selectinload(Trip.owner_user))
     updated_trip = session.exec(query).one_or_none()
     if not updated_trip:
-        raise HTTPException(status_code=404, detail="Trip not found after update")
+        raise ResourceNotFoundError(resource, trip_id)
 
     response_trip = TripPublic(
         **updated_trip.model_dump(exclude={"owner"}), owner=updated_trip.owner_user
@@ -112,8 +115,9 @@ async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep) -> di
 def delete_trip(trip_id: int, session: SessionDep) -> dict:
     """Delete the specified trip."""
     trip_db = session.get(Trip, trip_id)
+    resource = "Trip"
     if not trip_db:
-        raise HTTPException(status_code=404, detail="Trip Not Found")
+        raise ResourceNotFoundError(resource, trip_id)
     session.delete(trip_db)
     session.commit()
     return {"data": True}

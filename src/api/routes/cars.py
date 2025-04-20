@@ -2,11 +2,12 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from api.deps import SecurityDep, SessionDep, get_current_user
+from core.exceptions import ResourceNotFoundError
 from models.car import Car, CarCreate, CarPublic, Passenger, PassengerCreate
 from models.shared import DTO
 from models.user import User
@@ -41,8 +42,9 @@ def get_car_by_id(trip_id: int, car_id: int, session: SessionDep) -> dict:
     car = session.exec(
         select(Car).where(Car.trip_id == trip_id, Car.id == car_id)
     ).first()
+    resource = "Car"
     if not car:
-        raise HTTPException(status_code=404, detail="Car Not Found")
+        raise ResourceNotFoundError(resource, car_id)
     return {"data": car}
 
 
@@ -69,8 +71,9 @@ def delete_car(trip_id: int, car_id: int, session: SessionDep) -> dict:
     """Delete a car."""
     query = select(Car).where(Car.trip_id == trip_id, Car.id == car_id)
     car = session.exec(query).first()
+    resource = "Car"
     if not car:
-        raise HTTPException(status_code=404, detail="Error Car Not Found")
+        raise ResourceNotFoundError(resource, car_id)
     session.delete(car)
     session.commit()
     return {"data": True}
@@ -90,12 +93,14 @@ def add_passenger(
 ) -> dict:
     """Add a passenger to a car."""
     car = session.get(Car, car_id)
+    resource = "Car"
     if not car or car.trip_id != trip_id:
-        raise HTTPException(404, "Car not found on this trip")
+        raise ResourceNotFoundError(resource, car_id)
 
     user = session.get(User, user.id)
+    resource = "User"
     if not user:
-        raise HTTPException(404, "User not found")
+        raise ResourceNotFoundError(resource, user.id)
     # TODO: fix logic and decide whether to have role based passenger selection
     new_passenger = Passenger(**passenger.model_dump(), user_id=user.id, car_id=car_id)
     session.add(new_passenger)
@@ -112,7 +117,8 @@ def add_passenger(
 def get_passengers(trip_id: int, car_id: int, session: SessionDep) -> dict:
     """Return all passengers for a car."""
     car = session.get(Car, car_id)
+    resource = "Car"
     if not car or car.trip_id != trip_id:
-        raise HTTPException(404, "Car not found on this trip")
+        raise ResourceNotFoundError(resource, car_id)
     session.refresh(car)
     return {"data": car.passengers}

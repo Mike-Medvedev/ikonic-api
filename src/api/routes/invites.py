@@ -3,9 +3,11 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlmodel import select
+from vonage_sms.errors import SmsError as VonageSmsError
 
+from core.exceptions import ResourceNotFoundError, SmsError
 from models.invite import DeepLink, SortedUsersResponse
 from models.shared import DTO
 from models.trip import TripUserLink, TripUserLinkRsvp
@@ -61,11 +63,15 @@ def invite_user(
 ) -> dict:
     """Invite a user to a trip."""
     user = session.get(User, user_id)
+    resource = "User"
     if not user:
-        raise HTTPException(status_code=404, detail="User Not Found")
-    response = send_sms_invte(user.phone, deep_link.deep_link, vonage)
-    if not response:
-        raise HTTPException(status_code=400, detail="Error Sending SMS")
+        raise ResourceNotFoundError(resource, user_id)
+    try:
+        send_sms_invte(user.phone, deep_link.deep_link, vonage)
+    except VonageSmsError as exc:
+        resource = "SMS"
+        raise SmsError(resource, user_id) from exc
+
     link = TripUserLink(trip_id=trip_id, user_id=user_id)
     return {"data": link}
 
@@ -80,8 +86,9 @@ def rsvp(
 ) -> dict:
     """RSVP to a trip invite."""
     link = session.get(TripUserLink, (trip_id, user_id))
+    resource = "Link"
     if not link:
-        raise HTTPException(status_code=404, detail="Link Not Found")
+        raise ResourceNotFoundError(resource, f"{trip_id}: {user_id}")
     rsvp = res.model_dump(exclude_unset=True)
     updated_link = link.sqlmodel_update(rsvp)
     session.add(updated_link)

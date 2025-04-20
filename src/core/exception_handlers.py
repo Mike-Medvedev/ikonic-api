@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from core.exceptions import InvalidTokenError, ResourceNotFoundError
+from core.exceptions import InvalidTokenError, ResourceNotFoundError, SmsError
 
 logger = logging.getLogger(__name__)
 
@@ -41,3 +41,10 @@ def setup_exception_handlers(app: FastAPI) -> None:
     async def invalid_token_handler(request: Request, exc: InvalidTokenError) -> None:
         logger.error("%s on %s", str(exc), str(request.url))
         return JSONResponse(status_code=403, content={"detail": str(exc)})
+
+    @app.exception_handler(SmsError)
+    async def sms_error_handler(request: Request, exc: SmsError) -> None:
+        logger.error(
+            "Sms error on %s with error %s", str(request.url), str(exc), exc_info=True
+        )
+        return JSONResponse(status_code=500, content={"detail": str(exc)})

@@ -114,13 +114,19 @@
 
 ## Exception Handling
 
-1. Graceful error handling is the key to robust and maintainable applications.
-2. Always decide whether to gracefully supress and log error or propogate.
-3. Exceptions should always be caught specifically, to avoid try catch use global error handling
-4. Fast api uses @app_exception_handler(Exception) to define a global error handler for all api endpoints.
-5. Create custom responses but hide internal implentation details for frontend for security reasons
-6. Ensure descriptive status codes reflecting failure.
-7. Use custom exception classes or libraries exceptions for specific error handling and procedures.
+1. Custom Exceptions make code more readable an express specific business rule that failed
+2. Define Custom Exceptions to handle errors locally first
+3. Raise errors when curent context cannot handle error
+4. Log descriptive error messages for DX
+5. Never Catch an exception and do nothing
+6. Fail fast, validate input and conditions and fail without propogating deep into system
+7. Allow high level handlers to catch specific error types and appropriate responses
+8. Validate all data from external sources at BOUNDRY of system
+9. Implement centralized mechanism for catching unhandled exceptions that bubble up, Catch all safety net.
+10. Always log full details, error messages and stack traces for debugging
+11. Define a consistent structure for Error responses
+12. Avoid sensitive data spilling like logging a User object
+13. Generate unique ids like request id's to trace a request's entire lifecycle across the system.
 
 ## Clean Code
 
