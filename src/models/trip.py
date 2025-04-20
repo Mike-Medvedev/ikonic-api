@@ -5,14 +5,11 @@ Defines the database tables and relationships for trips in trip planning.
 
 import uuid
 from datetime import date
-from typing import TYPE_CHECKING, Union
 
 from sqlmodel import Field, Relationship, SQLModel
 
-# avoids circular dependency by importing at runtime
-if TYPE_CHECKING:
-    from models.car import Car
-    from models.user import User
+from models.car import Car
+from models.user import User
 
 
 class TripBase(SQLModel):
@@ -26,8 +23,8 @@ class Trip(TripBase, table=True):
     __tablename__ = "trips"
     id: int | None = Field(default=None, primary_key=True)
     owner: uuid.UUID = Field(foreign_key="public.users.id")
-    cars: list["Car"] = Relationship()
-    owner_user: Union["User", None] = Relationship(back_populates="owned_trips")
+    cars: list[Car] = Relationship()
+    owner_user: User | None = Relationship(back_populates="owned_trips")
 
 
 class TripCreate(TripBase):
@@ -36,7 +33,7 @@ class TripCreate(TripBase):
 
 class TripPublic(TripBase):
     id: int
-    owner: "User"
+    owner: User
 
 
 class TripUpdate(SQLModel):

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
-# avoids circular dependency by importing at runtime
+# avoids circular dependency by importing at typechecking time. Car and Trip can regular import at runtime
 if TYPE_CHECKING:
     from models.car import Car
     from models.trip import Trip
@@ -17,10 +17,8 @@ if TYPE_CHECKING:
 class User(SQLModel, table=True):
     __tablename__ = "users"
     __table_args__ = {"schema": "public", "extend_existing": True}
-    id: uuid.UUID = Field(
-        primary_key=True, foreign_key="auth.users.id", ondelete="CASCADE"
-    )
-    phone: str = Field(foreign_key="auth.users.phone")
+    id: uuid.UUID = Field(primary_key=True)
+    phone: str = Field()
     firstname: str | None
     lastname: str | None
     owned_trips: list["Trip"] = Relationship(back_populates="owner_user")

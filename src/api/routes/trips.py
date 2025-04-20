@@ -6,19 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
+from models.shared import DTO
+from models.trip import Trip, TripCreate, TripPublic, TripUpdate, TripUserLink
+from models.user import User
 from src.api.deps import (
     SecurityDep,
     SessionDep,
     get_current_user,
-)
-from src.models import (
-    DTO,
-    Trip,
-    TripCreate,
-    TripPublic,
-    TripUpdate,
-    TripUserLink,
-    User,
 )
 
 router = APIRouter(prefix="/trips", tags=["trips"])

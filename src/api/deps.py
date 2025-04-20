@@ -4,7 +4,7 @@ from collections.abc import Generator
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from gotrue.errors import AuthApiError
 from gotrue.types import User
@@ -13,6 +13,7 @@ from supabase import Client, create_client
 from vonage import Auth, Vonage
 from vonage_sms import SmsMessage, SmsResponse
 
+from core.exceptions import InvalidTokenError
 from src.core.config import settings
 from src.core.db import engine
 
@@ -58,15 +59,13 @@ def get_current_user(
 ) -> User | None:
     """Extract bearer token and validate it with supabase client. Return Validated User data."""
     token = credentials.credentials
-    error = HTTPException(
-        status_code=401, detail="Invalid or expired authentication token"
-    )
     try:
         user_response = supabase.auth.get_user(token)
     except AuthApiError as exc:
-        raise error from exc
+        resource = "Token"
+        raise InvalidTokenError(resource, "12345") from exc
     if not user_response.user:
-        raise error
+        raise InvalidTokenError(resource, "12345")
     return user_response.user
 
 

@@ -1,12 +1,15 @@
 """FastAPI endpoints for querying and retrieving user data."""
 
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, Depends
 from sqlmodel import select
 
+from core.exceptions import ResourceNotFoundError
+from models.shared import DTO
+from models.user import User
 from src.api.deps import SessionDep, get_current_user
-from src.models import DTO, User
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -26,8 +29,11 @@ def get_users(session: SessionDep) -> dict:
 @router.get(
     "/{user_id}", dependencies=[Depends(get_current_user)], response_model=DTO[User]
 )
-def get_user_by_id(user_id: str, session: SessionDep) -> dict:
+def get_user_by_id(user_id: UUID, session: SessionDep) -> dict:
     """Return a specified user."""
     user = session.get(User, user_id)
-    logger.info("Fetching User: %s by id: %s", user, user_id)
+    resource_type = "User"
+    if not user:
+        raise ResourceNotFoundError(resource_type, user_id)
+    logger.info("Successfully fetched user %s by ID: %s", user, user_id)
     return {"data": user}

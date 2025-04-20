@@ -1,23 +1,20 @@
 """FastAPI endpoints for retrieving and querying trip invite data."""
 
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 
+from models.invite import DeepLink, SortedUsersResponse
+from models.shared import DTO
+from models.trip import TripUserLink, TripUserLinkRsvp
+from models.user import User
 from src.api.deps import (
     SessionDep,
     VonageDep,
     get_current_user,
     send_sms_invte,
-)
-from src.models import (
-    DTO,
-    DeepLink,
-    SortedUsersResponse,
-    TripUserLink,
-    TripUserLinkRsvp,
-    User,
 )
 
 router = APIRouter(prefix="/trips/{trip_id}", tags=["invites"])
@@ -57,7 +54,7 @@ def get_invited_users(trip_id: int, session: SessionDep) -> dict:
 )
 def invite_user(
     trip_id: int,
-    user_id: str,
+    user_id: UUID,
     deep_link: DeepLink,
     session: SessionDep,
     vonage: VonageDep,
@@ -79,7 +76,7 @@ def invite_user(
     dependencies=[Depends(get_current_user)],
 )
 def rsvp(
-    trip_id: int, user_id: str, res: TripUserLinkRsvp, session: SessionDep
+    trip_id: int, user_id: UUID, res: TripUserLinkRsvp, session: SessionDep
 ) -> dict:
     """RSVP to a trip invite."""
     link = session.get(TripUserLink, (trip_id, user_id))

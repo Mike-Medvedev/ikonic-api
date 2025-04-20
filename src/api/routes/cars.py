@@ -7,7 +7,9 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from api.deps import SecurityDep, SessionDep, get_current_user
-from src.models import DTO, Car, CarCreate, CarPublic, Passenger, PassengerCreate, User
+from models.car import Car, CarCreate, CarPublic, Passenger, PassengerCreate
+from models.shared import DTO
+from models.user import User
 
 router = APIRouter(prefix="/trips/{trip_id}/cars", tags=["cars"])
 
