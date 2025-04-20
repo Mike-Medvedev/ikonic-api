@@ -1,3 +1,8 @@
+"""Project Settings and Configurations using Pydantic Settings.
+
+Env Variables are automatically imported and validated.
+"""
+
 import logging
 
 from pydantic import PostgresDsn, computed_field
@@ -10,7 +15,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file="../.env")
 
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(name)s | %(message)s",
         datefmt="[%X]",
         handlers=[RichHandler(markup=True, show_path=True)],
@@ -37,6 +42,7 @@ class Settings(BaseSettings):
     @computed_field
     @property  # makes functin avaliable as dot notation foo.bar() -> foo.bar
     def sqlalchemy_database_uri(self) -> PostgresDsn:
+        """Compose db connection string."""
         return MultiHostUrl.build(
             scheme=self.POSTGRES_SCHEME,
             username=self.POSTGRES_USER,

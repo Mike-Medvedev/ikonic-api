@@ -1,15 +1,19 @@
+"""Group all API Routers and respective endpoints."""
+
 from fastapi import APIRouter
 
-from src.api.routes import cars, trips, users
+from src.api.routes import cars, invites, trips, users
 
 api_router = APIRouter()
 
 
 @api_router.get("/")
-def main():
+def main() -> str:
+    """Root API endpoint."""
     return "Hello World!"
 
 
 api_router.include_router(users.router)
 api_router.include_router(trips.router)
 api_router.include_router(cars.router)
+api_router.include_router(invites.router)

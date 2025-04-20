@@ -1,10 +1,15 @@
+"""FastAPI entry point. Creates FastAPI app and setup/teardown logic."""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.exception_handlers import setup_exception_handlers
 from src.api.main import api_router
 from src.core.config import settings
 
 app = FastAPI(title=settings.PROJECT_NAME)
+
+setup_exception_handlers(app)
 
 if settings.BACKEND_CORS_ORIGINS:
     app.add_middleware(

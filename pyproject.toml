@@ -68,7 +68,6 @@ line-ending = "lf"
 select = ["ALL"]
 ignore = [
   # Modules
-  "ANN",    # flake8-annotations
   "COM",    # flake8-commas
   "C90",    # mccabe complexity
   "DJ",     # django
@@ -77,8 +76,10 @@ ignore = [
   "TID",    # flake8-tidy-imports
 
   # Specific rules
-  "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
-  "D200", "D203", "D205", "D212", "D400", "D401", "D415",   # pydocstyle
+  "D101",
+  "D203",
+  "D213",
+  "D104",
   "E402",  # import not at top of file
   "E501",  # line too long
   "TRY003", "TD002", "TD003", "FIX002"
