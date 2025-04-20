@@ -1,10 +1,10 @@
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
-from api.deps import SecurityDep, SessionDep
+from api.deps import SecurityDep, SessionDep, get_current_user
 from models import DTO, Car, CarCreate, CarPublic, Passenger, PassengerCreate, User
 
 router = APIRouter(prefix="/trips/cars", tags=["cars"])
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 @router.get(
     "/{trip_id}/cars",
     response_model=DTO[list[CarPublic]],
-    dependencies=[SecurityDep],
+    dependencies=[Depends(get_current_user)],
 )
 def get_cars_for_trip(trip_id: int, session: SessionDep):
     cars = session.exec(
@@ -45,7 +45,7 @@ def create_car(trip_id: int, car: CarCreate, session: SessionDep, user: Security
     return {"data": car_public}
 
 
-@router.get("/{trip_id}/cars/{car_id}", dependencies=[SecurityDep])
+@router.get("/{trip_id}/cars/{car_id}", dependencies=[Depends(get_current_user)])
 def get_car_by_id(trip_id: int, car_id: int, session: SessionDep):
     car = session.exec(
         select(Car).where(Car.trip_id == trip_id, Car.id == car_id)
@@ -55,7 +55,7 @@ def get_car_by_id(trip_id: int, car_id: int, session: SessionDep):
     return {"data": car}
 
 
-@router.delete("/{trip_id}/cars/{car_id}", dependencies=[SecurityDep])
+@router.delete("/{trip_id}/cars/{car_id}", dependencies=[Depends(get_current_user)])
 def delete_car(trip_id: int, car_id: int, session: SessionDep):
     query = select(Car).where(Car.trip_id == trip_id, Car.id == car_id)
     car = session.exec(query).first()
@@ -69,7 +69,7 @@ def delete_car(trip_id: int, car_id: int, session: SessionDep):
 @router.post(
     "/{trip_id}/cars/{car_id}/passengers",
     response_model=DTO[PassengerCreate],
-    dependencies=[SecurityDep],
+    dependencies=[Depends(get_current_user)],
 )
 def add_passenger(
     trip_id: int,

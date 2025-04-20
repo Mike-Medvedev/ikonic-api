@@ -10,6 +10,7 @@ from src.api.deps import (
     SecurityDep,
     SessionDep,
     VonageDep,
+    get_current_user,
     send_sms_invte,
 )
 from src.models import (
@@ -49,7 +50,7 @@ def get_trips(session: SessionDep, user: SecurityDep):
 @router.get(
     "/{trip_id}",
     response_model=DTO[TripPublic],
-    dependencies=[SecurityDep],
+    dependencies=[Depends(get_current_user)],
 )
 async def get_trip(trip_id: int, session: SessionDep):
     query = (
@@ -86,7 +87,7 @@ async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep):
 @router.patch(
     "/{trip_id}",
     response_model=DTO[TripPublic],
-    dependencies=[SecurityDep],
+    dependencies=[Depends(get_current_user)],
 )
 async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep):
     trip_db = session.get(Trip, trip_id)
@@ -111,7 +112,7 @@ async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep):
     return {"data": response_trip}
 
 
-@router.delete("/{trip_id}", dependencies=[SecurityDep])
+@router.delete("/{trip_id}", dependencies=[Depends(get_current_user)])
 def delete_trip(trip_id: int, session: SessionDep):
     trip_db = session.get(Trip, trip_id)
     if not trip_db:
@@ -124,7 +125,7 @@ def delete_trip(trip_id: int, session: SessionDep):
 @router.get(
     "/{trip_id}/invites",
     response_model=DTO[SortedUsersResponse],
-    dependencies=[SecurityDep],
+    dependencies=[Depends(get_current_user)],
 )
 def get_invited_users(trip_id: int, session: SessionDep):
     statement = (
