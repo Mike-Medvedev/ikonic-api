@@ -1,10 +1,20 @@
+import logging
+
 from pydantic import PostgresDsn, computed_field
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from rich.logging import RichHandler
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file="../.env")
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(name)s | %(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(markup=True, show_path=True)],
+    )
 
     PROJECT_NAME: str
     SUPABASE_URL: str
