@@ -11,7 +11,9 @@ router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
 
 
-@router.get(response_model=DTO[list[User]], dependencies=[Depends(get_current_user)])
+@router.get(
+    "", response_model=DTO[list[User]], dependencies=[Depends(get_current_user)]
+)
 def get_users(session: SessionDep):
     users = session.exec(select(User)).all()
     return {"data": list(users)}

@@ -149,7 +149,7 @@ def get_invited_users(trip_id: int, session: SessionDep):
     "/{trip_id}/invites/{user_id}",
     response_model=DTO[TripUserLink],
     status_code=201,
-    dependencies=[Depends(SecurityDep)],
+    dependencies=[Depends(get_current_user)],
 )
 def invite_user(
     trip_id: int,
@@ -171,7 +171,7 @@ def invite_user(
 @router.patch(
     "/{trip_id}/invites/{user_id}",
     response_model=DTO[TripUserLink],
-    dependencies=[Depends(SecurityDep)],
+    dependencies=[Depends(get_current_user)],
 )
 def create_rsvp(trip_id: int, user_id: str, res: TripUserLinkRsvp, session: SessionDep):
     link = session.get(TripUserLink, (trip_id, user_id))

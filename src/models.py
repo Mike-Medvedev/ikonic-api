@@ -9,15 +9,9 @@ class DTO[T](BaseModel):
     data: T
 
 
-class SupabaseUser(SQLModel, table=True):
-    __tablename__ = "users"
-    __table_args__ = {"schema": "auth"}
-    id: uuid.UUID = Field(primary_key=True)
-
-
 class User(SQLModel, table=True):
     __tablename__ = "users"
-    __table_args__ = {"schema": "public"}
+    __table_args__ = {"schema": "public", "extend_existing": True}
     id: uuid.UUID = Field(
         primary_key=True, foreign_key="auth.users.id", ondelete="CASCADE"
     )
