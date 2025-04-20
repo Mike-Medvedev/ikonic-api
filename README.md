@@ -11,6 +11,7 @@ learnings from from fastapi template
 7. services for business logic in seperate class (services)
 8. db operations in data access layer
 9. Implement DTO and DAO layers to improve architecture. DTO -> data crossing from server to client , DAO -> encapsulate ORM operations USERDao
+10. Model folder contains models for domain specific and shared entities
 
 ## SETTING/CONFIG Learnings
 
@@ -112,3 +113,22 @@ learnings from from fastapi template
    ERROR for non fatal error suppression that indicates a service failed. CRITICAL for events that are fatal and potentially non recoverable
 3. loggers follow a tree structure and can be configured exenstively with basicConfig and dictConfig
 4. scoped module loggers follow getLogger(**name**) convention allows for overriding loger config for a module and inherits from its parent logger
+
+## Exception Handling
+
+1. Graceful error handling is the key to robust and maintainable applications.
+2. Always decide whether to gracefully supress and log error or propogate.
+3. Exceptions should always be caught specifically, to avoid try catch use global error handling
+4. Fast api uses @app_exception_handler(Exception) to define a global error handler for all api endpoints.
+5. Create custom responses but hide internal implentation details for frontend for security reasons
+6. Ensure descriptive status codes reflecting failure.
+7. Use custom exception classes or libraries exceptions for specific error handling and procedures.
+
+## Clean Code
+
+1. Linting and Formatting rules set in place and ran on commit is crucial for clean code base.
+2. Documenting Modules and functions is a must
+3. non intuitive decisions are great candidates for commenting in line.
+4. Properly grouping related entities into folders and common functionalities/usecase
+5. Proper variable naming is crucial, rename constantly to keep code readable
+6. Type annotations to define return type and variable types to keep code readable and less error prone.
