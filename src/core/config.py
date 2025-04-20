@@ -12,7 +12,7 @@ from rich.logging import RichHandler
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file="../.env")
+    model_config = SettingsConfigDict(env_file=".env")
 
     logging.basicConfig(
         level=logging.INFO,
@@ -54,7 +54,6 @@ class Settings(BaseSettings):
 
     VONAGE_API_KEY: str
     VONAGE_API_SECRET: str
-    TO_NUMBER: str
     VONAGE_NUMBER: str
 
 
