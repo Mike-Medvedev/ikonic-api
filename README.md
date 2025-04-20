@@ -1,5 +1,3 @@
-learnings from from fastapi template
-
 ## Project Setup Learnings
 
 1. .env file placed in root directory, can specify relative path in Config
