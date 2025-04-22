@@ -20,7 +20,7 @@ class InviteCreate(SQLModel):
 
 
 class SortedUsersResponse(BaseModel):
-    accepted: list[User] = []
-    pending: list[User] = []
-    uncertain: list[User] = []
-    declined: list[User] = []
+    accepted: list[User]
+    pending: list[User]
+    uncertain: list[User]
+    declined: list[User]
