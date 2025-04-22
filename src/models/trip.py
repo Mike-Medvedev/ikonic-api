@@ -11,8 +11,10 @@ from sqlmodel import Field, Relationship, SQLModel
 from models.car import Car
 from models.user import User
 
+from .model_config import ConfiguredBaseModel
 
-class TripBase(SQLModel):
+
+class TripBase(ConfiguredBaseModel):
     title: str
     start_date: date
     end_date: date
@@ -20,10 +22,15 @@ class TripBase(SQLModel):
     desc: str | None = None
 
 
-class Trip(TripBase, table=True):
+class Trip(SQLModel, table=True):
     __tablename__ = "trips"
     id: int | None = Field(default=None, primary_key=True)
     owner: uuid.UUID = Field(foreign_key="public.users.id")
+    title: str
+    start_date: date
+    end_date: date
+    mountain: str
+    desc: str | None = None
     cars: list[Car] = Relationship()
     owner_user: User = Relationship(back_populates="owned_trips")
 
@@ -32,7 +39,7 @@ class TripCreate(TripBase):
     pass
 
 
-class TripUpdate(SQLModel):
+class TripUpdate(ConfiguredBaseModel):
     title: str | None = None
     start_date: date | None = None
     end_date: date | None = None
@@ -45,14 +52,16 @@ class TripPublic(TripBase):
     owner: User
 
 
-class TripParticipationBase(SQLModel):
+class TripParticipationBase(ConfiguredBaseModel):
     rsvp: str | None = None
     paid: int | None = None
 
 
-class TripParticipation(TripParticipationBase, table=True):
+class TripParticipation(SQLModel, table=True):
     __tablename__ = "trips_users_map"
     trip_id: int = Field(primary_key=True, foreign_key="trips.id")
+    rsvp: str | None = Field(default=None)
+    paid: int | None = None
     user_id: uuid.UUID = Field(primary_key=True, foreign_key="public.users.id")
 
 

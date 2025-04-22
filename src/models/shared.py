@@ -1,7 +1,7 @@
 """Generic Util Models."""
 
-from pydantic import BaseModel
+from .model_config import ConfiguredBaseModel
 
 
-class DTO[T](BaseModel):
+class DTO[T](ConfiguredBaseModel):
     data: T

@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Field, Relationship, SQLModel
 
+from .model_config import ConfiguredBaseModel
+
 # avoids circular dependency by importing at typechecking time. Car and Trip can regular import at runtime
 if TYPE_CHECKING:
     from models.car import Car
@@ -23,3 +25,10 @@ class User(SQLModel, table=True):
     lastname: str | None
     owned_trips: list["Trip"] = Relationship(back_populates="owner_user")
     owned_cars: list["Car"] = Relationship(back_populates="owner_user")
+
+
+class UserPublic(ConfiguredBaseModel):
+    id: uuid.UUID
+    phone: str
+    firstname: str
+    lastname: str

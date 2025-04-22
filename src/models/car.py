@@ -9,10 +9,12 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from models.user import User
 
+from .model_config import ConfiguredBaseModel
 
-class CarBase(SQLModel):
+
+class CarBase(ConfiguredBaseModel):
     seat_count: int = 4
-    passengers: list["Passenger"] | None = []
+    passengers: list["Passenger"] = Field(default_factory=list)
 
 
 class CarCreate(CarBase):
@@ -39,21 +41,28 @@ class CarPublic(CarBase):
     id: int
     trip_id: int
     owner: User
-    passengers: list[User] | None = []
+    passengers: list[User] = Field(default_factory=list)
     seat_count: int = 4
 
 
-class PassengerBase(SQLModel):
+class PassengerBase(ConfiguredBaseModel):
     seat_position: int
 
 
-class Passenger(PassengerBase, table=True):
+class Passenger(SQLModel, table=True):
     __tablename__ = "passengers"
     user_id: uuid.UUID = Field(
         foreign_key="public.users.id", primary_key=True, ondelete="CASCADE"
     )
     car_id: int = Field(foreign_key="cars.id", primary_key=True, ondelete="CASCADE")
+    seat_position: int
     car: "Car" = Relationship(back_populates="passengers")
+
+
+class PassengerPublic(PassengerBase):
+    user_id: uuid.UUID
+    car_id: int
+    seat_position: int
 
 
 class PassengerCreate(PassengerBase):

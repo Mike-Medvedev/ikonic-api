@@ -8,7 +8,7 @@ from sqlmodel import select
 from vonage_sms.errors import SmsError as VonageSmsError
 
 from core.exceptions import ResourceNotFoundError, SmsError
-from models.invite import DeepLink, SortedUsersResponse
+from models.invite import AttendanceList, DeepLink
 from models.shared import DTO
 from models.trip import TripParticipation, TripParticipationRsvp
 from models.user import User
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 @router.get(
     "/invites",
-    response_model=DTO[SortedUsersResponse],
+    response_model=DTO[AttendanceList],
     dependencies=[Depends(get_current_user)],
 )
 def get_invited_users(trip_id: int, session: SessionDep) -> dict:

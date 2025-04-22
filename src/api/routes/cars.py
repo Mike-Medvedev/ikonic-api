@@ -8,7 +8,14 @@ from sqlmodel import select
 
 from api.deps import SecurityDep, SessionDep, get_current_user
 from core.exceptions import ResourceNotFoundError
-from models.car import Car, CarCreate, CarPublic, Passenger, PassengerCreate
+from models.car import (
+    Car,
+    CarCreate,
+    CarPublic,
+    Passenger,
+    PassengerCreate,
+    PassengerPublic,
+)
 from models.shared import DTO
 from models.user import User
 
@@ -111,7 +118,7 @@ def add_passenger(
 
 @router.get(
     "/{car_id}/passengers",
-    response_model=DTO[list[Passenger]],
+    response_model=DTO[list[PassengerPublic]],
     dependencies=[Depends(get_current_user)],
 )
 def get_passengers(trip_id: int, car_id: int, session: SessionDep) -> dict:
