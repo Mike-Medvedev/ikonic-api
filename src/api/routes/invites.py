@@ -10,7 +10,7 @@ from vonage_sms.errors import SmsError as VonageSmsError
 from core.exceptions import ResourceNotFoundError, SmsError
 from models.invite import DeepLink, SortedUsersResponse
 from models.shared import DTO
-from models.trip import TripUserLink, TripUserLinkRsvp
+from models.trip import TripParticipation, TripParticipationRsvp
 from models.user import User
 from src.api.deps import (
     SessionDep,
@@ -32,9 +32,9 @@ logger = logging.getLogger(__name__)
 def get_invited_users(trip_id: int, session: SessionDep) -> dict:
     """Return Invited Users for a trip."""
     statement = (
-        select(User, TripUserLink.rsvp)
-        .join(TripUserLink, TripUserLink.user_id == User.id)
-        .where(TripUserLink.trip_id == trip_id)
+        select(User, TripParticipation.rsvp)
+        .join(TripParticipation, TripParticipation.user_id == User.id)
+        .where(TripParticipation.trip_id == trip_id)
     )
     users = session.exec(statement).all()
     logger.info(users)
@@ -50,7 +50,7 @@ def get_invited_users(trip_id: int, session: SessionDep) -> dict:
 
 @router.post(
     "/invites/{user_id}",
-    response_model=DTO[TripUserLink],
+    response_model=DTO[bool],
     status_code=201,
     dependencies=[Depends(get_current_user)],
 )
@@ -72,26 +72,29 @@ def invite_user(
         resource = "SMS"
         raise SmsError(resource, user_id) from exc
 
-    link = TripUserLink(trip_id=trip_id, user_id=user_id)
-    return {"data": link}
+    # add user to trip in 'pending' state
+    record = TripParticipation(trip_id=trip_id, user_id=user_id)
+    session.add(record)
+    session.commit()
+
+    return {"data": True}
 
 
 @router.patch(
     "/invites/{user_id}",
-    response_model=DTO[TripUserLink],
+    response_model=DTO[bool],
     dependencies=[Depends(get_current_user)],
 )
 def rsvp(
-    trip_id: int, user_id: UUID, res: TripUserLinkRsvp, session: SessionDep
+    trip_id: int, user_id: UUID, res: TripParticipationRsvp, session: SessionDep
 ) -> dict:
     """RSVP to a trip invite."""
-    link = session.get(TripUserLink, (trip_id, user_id))
-    resource = "Link"
-    if not link:
+    participation = session.get(TripParticipation, (trip_id, user_id))
+    resource = "participation"
+    if not participation:
         raise ResourceNotFoundError(resource, f"{trip_id}: {user_id}")
     rsvp = res.model_dump(exclude_unset=True)
-    updated_link = link.sqlmodel_update(rsvp)
-    session.add(updated_link)
+    updated_participation = participation.sqlmodel_update(rsvp)
+    session.add(updated_participation)
     session.commit()
-    session.refresh(updated_link)
-    return {"data": updated_link}
+    return {"data": True}

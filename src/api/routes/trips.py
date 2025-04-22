@@ -8,7 +8,7 @@ from sqlmodel import select
 
 from core.exceptions import ResourceNotFoundError
 from models.shared import DTO
-from models.trip import Trip, TripCreate, TripPublic, TripUpdate, TripUserLink
+from models.trip import Trip, TripCreate, TripParticipation, TripPublic, TripUpdate
 from models.user import User
 from src.api.deps import (
     SecurityDep,
@@ -26,9 +26,9 @@ def get_trips(session: SessionDep, user: SecurityDep) -> dict:
     """Return all trips for a user."""
     query = (
         select(Trip)
-        .join(TripUserLink, Trip.id == TripUserLink.trip_id)
+        .join(TripParticipation, Trip.id == TripParticipation.trip_id)
         .options(selectinload(Trip.owner_user))
-        .where(TripUserLink.user_id == user.id)
+        .where(TripParticipation.user_id == user.id)
     )
     trips = session.exec(query).all()
     trips_public = [
@@ -66,19 +66,18 @@ async def get_trip(trip_id: int, session: SessionDep) -> dict:
 
 @router.post("/", response_model=DTO[TripPublic])
 async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep) -> dict:
-    """Create a new trip and link new trip to user."""
+    """Create a new trip and user as trip participant."""
     owner = user.id
     new_trip = Trip(**trip.model_dump(), owner=owner)
     session.add(new_trip)
     session.flush()
-    # TODO: Rework TripUserLink model into UserTrip Map and fix naming
-    link = TripUserLink(
+    # associate new trip with owner
+    participant = TripParticipation(
         trip_id=new_trip.id,
-        # map new trip to owner and init rsvp to "accepted"
         user_id=user.id,
-        rsvp="accepted",
+        rsvp="accepted",  # default participation to accepted
     )
-    session.add(link)
+    session.add(participant)
     session.commit()
     session.refresh(new_trip)
     owner = session.get(User, user.id)

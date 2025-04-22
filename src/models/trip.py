@@ -32,11 +32,6 @@ class TripCreate(TripBase):
     pass
 
 
-class TripPublic(TripBase):
-    id: int
-    owner: User
-
-
 class TripUpdate(SQLModel):
     title: str | None = None
     start_date: date | None = None
@@ -45,19 +40,21 @@ class TripUpdate(SQLModel):
     desc: str | None = None
 
 
-class TripUserLinkBase(SQLModel):
+class TripPublic(TripBase):
+    id: int
+    owner: User
+
+
+class TripParticipationBase(SQLModel):
     rsvp: str | None = None
     paid: int | None = None
 
 
-class TripUserLink(SQLModel, table=True):
+class TripParticipation(TripParticipationBase, table=True):
     __tablename__ = "trips_users_map"
     trip_id: int = Field(primary_key=True, foreign_key="trips.id")
-    # no need to make fk on supabase auth.users, let db handle
     user_id: uuid.UUID = Field(primary_key=True, foreign_key="public.users.id")
-    rsvp: str | None = None
-    paid: int | None = None
 
 
-class TripUserLinkRsvp(TripUserLinkBase):
+class TripParticipationRsvp(TripParticipationBase):
     pass
