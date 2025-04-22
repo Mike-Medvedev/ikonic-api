@@ -17,6 +17,7 @@ class TripBase(SQLModel):
     start_date: date
     end_date: date
     mountain: str
+    desc: str | None
 
 
 class Trip(TripBase, table=True):
@@ -41,6 +42,7 @@ class TripUpdate(SQLModel):
     start_date: date | None = None
     end_date: date | None = None
     mountain: str | None = None
+    desc: str | None = None
 
 
 class TripUserLinkBase(SQLModel):

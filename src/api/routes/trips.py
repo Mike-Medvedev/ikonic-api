@@ -105,7 +105,9 @@ async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep) -> di
     session.refresh(trip_db)
 
     # Re-query with eager loading to get the owner_user relationship.
-    query = select(Trip).where(Trip.id == id).options(selectinload(Trip.owner_user))
+    query = (
+        select(Trip).where(Trip.id == trip_id).options(selectinload(Trip.owner_user))
+    )
     updated_trip = session.exec(query).one_or_none()
     if not updated_trip:
         raise ResourceNotFoundError(resource, trip_id)
