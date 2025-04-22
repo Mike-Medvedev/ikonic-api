@@ -24,7 +24,7 @@ class Trip(TripBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     owner: uuid.UUID = Field(foreign_key="public.users.id")
     cars: list[Car] = Relationship()
-    owner_user: User | None = Relationship(back_populates="owned_trips")
+    owner_user: User = Relationship(back_populates="owned_trips")
 
 
 class TripCreate(TripBase):

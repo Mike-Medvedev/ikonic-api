@@ -31,9 +31,11 @@ def get_trips(session: SessionDep, user: SecurityDep) -> dict:
         .where(TripUserLink.user_id == user.id)
     )
     trips = session.exec(query).all()
-
     trips_public = [
-        TripPublic(**trip.model_dump(exclude={"owner"}), owner=trip.owner_user)
+        TripPublic(
+            **trip.model_dump(exclude={"owner"}),
+            owner=trip.owner_user.model_dump(),
+        )
         for trip in trips
     ]
 
@@ -57,7 +59,7 @@ async def get_trip(trip_id: int, session: SessionDep) -> dict:
         raise ResourceNotFoundError(resource, trip_id)
 
     trip_public = TripPublic(
-        **trip.model_dump(exclude={"owner"}), owner=trip.owner_user
+        **trip.model_dump(exclude={"owner"}), owner=trip.owner_user.model_dump()
     )
     return {"data": trip_public}
 
@@ -65,20 +67,23 @@ async def get_trip(trip_id: int, session: SessionDep) -> dict:
 @router.post("/", response_model=DTO[TripPublic])
 async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep) -> dict:
     """Create a new trip and link new trip to user."""
-    valid_trip = Trip.model_validate(trip)
-    session.add(valid_trip)
+    owner = user.id
+    new_trip = Trip(**trip.model_dump(), owner=owner)
+    session.add(new_trip)
     session.flush()
     # TODO: Rework TripUserLink model into UserTrip Map and fix naming
     link = TripUserLink(
-        trip_id=valid_trip.id,
+        trip_id=new_trip.id,
         # map new trip to owner and init rsvp to "accepted"
         user_id=user.id,
         rsvp="accepted",
     )
     session.add(link)
     session.commit()
+    session.refresh(new_trip)
     owner = session.get(User, user.id)
-    return {"data": TripPublic(**trip.model_dump(exclude={"owner"}), owner=owner)}
+    session.refresh(new_trip)
+    return {"data": TripPublic(**new_trip.model_dump(exclude={"owner"}), owner=owner)}
 
 
 @router.patch(
