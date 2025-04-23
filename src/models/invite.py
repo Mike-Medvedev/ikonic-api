@@ -5,7 +5,7 @@ Defines the database tables and relationships for inviting and Rsvping to trips.
 
 import uuid
 
-from models.user import User
+from models.user import UserPublic
 
 from .model_config import ConfiguredBaseModel
 
@@ -19,7 +19,7 @@ class InviteCreate(ConfiguredBaseModel):
 
 
 class AttendanceList(ConfiguredBaseModel):
-    accepted: list[User]
-    pending: list[User]
-    uncertain: list[User]
-    declined: list[User]
+    accepted: list[UserPublic]
+    pending: list[UserPublic]
+    uncertain: list[UserPublic]
+    declined: list[UserPublic]

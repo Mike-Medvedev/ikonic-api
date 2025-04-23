@@ -9,7 +9,7 @@ from datetime import date
 from sqlmodel import Field, Relationship, SQLModel
 
 from models.car import Car
-from models.user import User
+from models.user import User, UserPublic
 
 from .model_config import ConfiguredBaseModel
 
@@ -49,7 +49,7 @@ class TripUpdate(ConfiguredBaseModel):
 
 class TripPublic(TripBase):
     id: int
-    owner: User
+    owner: UserPublic
 
 
 class TripParticipationBase(ConfiguredBaseModel):

@@ -7,7 +7,7 @@ import uuid
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from models.user import User
+from models.user import User, UserPublic
 
 from .model_config import ConfiguredBaseModel
 
@@ -40,8 +40,8 @@ class Car(SQLModel, table=True):
 class CarPublic(CarBase):
     id: int
     trip_id: int
-    owner: User
-    passengers: list[User] = Field(default_factory=list)
+    owner: UserPublic
+    passengers: list[UserPublic] = Field(default_factory=list)
     seat_count: int = 4
 
 

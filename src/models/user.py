@@ -30,5 +30,5 @@ class User(SQLModel, table=True):
 class UserPublic(ConfiguredBaseModel):
     id: uuid.UUID
     phone: str
-    firstname: str
-    lastname: str
+    firstname: str | None
+    lastname: str | None

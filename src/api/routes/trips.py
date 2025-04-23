@@ -9,7 +9,7 @@ from sqlmodel import select
 from core.exceptions import ResourceNotFoundError
 from models.shared import DTO
 from models.trip import Trip, TripCreate, TripParticipation, TripPublic, TripUpdate
-from models.user import User
+from models.user import User, UserPublic
 from src.api.deps import (
     SecurityDep,
     SessionDep,
@@ -82,7 +82,12 @@ async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep) 
     session.refresh(new_trip)
     owner = session.get(User, user.id)
     session.refresh(new_trip)
-    return {"data": TripPublic(**new_trip.model_dump(exclude={"owner"}), owner=owner)}
+    owner_public = UserPublic.model_validate(
+        owner, from_attributes=True
+    )  # convert User SQLModel obj to pydantic UserPublic model
+    return {
+        "data": TripPublic(**new_trip.model_dump(exclude={"owner"}), owner=owner_public)
+    }
 
 
 @router.patch(
@@ -110,9 +115,9 @@ async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep) -> di
     updated_trip = session.exec(query).one_or_none()
     if not updated_trip:
         raise ResourceNotFoundError(resource, trip_id)
-
     response_trip = TripPublic(
-        **updated_trip.model_dump(exclude={"owner"}), owner=updated_trip.owner_user
+        **updated_trip.model_dump(exclude={"owner"}),
+        owner=UserPublic.model_validate(updated_trip.owner_user),
     )
     return {"data": response_trip}
 
