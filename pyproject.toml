@@ -78,9 +78,11 @@ ignore = [
   # Specific rules
   "D101",
   "D203",
+  "D205", # 1 blank line between doc string and desc
   "D213",
   "D104",
-  "E402",  # import not at top of file
+  "E402",  # import not at top of file,
+  "EM101", # inline string
   "E501",  # line too long
   "TRY003", "TD002", "TD003", "FIX002"
 ]

@@ -5,7 +5,7 @@ Defines the database tables and relationships for cars used in trips
 
 import uuid
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, text
 
 from models.user import User, UserPublic
 
@@ -22,24 +22,33 @@ class CarCreate(CarBase):
 
 
 class CarUpdate(CarBase):
-    trip_id: int | None
+    trip_id: uuid.UUID | None
     owner: uuid.UUID | None
     seat_count: int | None = 4
 
 
 class Car(SQLModel, table=True):
     __tablename__ = "cars"
-    id: int | None = Field(default=None, primary_key=True)
-    trip_id: int = Field(foreign_key="trips.id", ondelete="CASCADE")
-    owner: uuid.UUID = Field(foreign_key="public.users.id")
+
+    id: uuid.UUID = Field(
+        default=None,
+        primary_key=True,
+        index=True,
+        nullable=False,
+        sa_column_kwargs={"server_default": text("gen_random_uuid()")},
+    )
+    trip_id: uuid.UUID = Field(
+        foreign_key="trips.id", nullable=False, ondelete="CASCADE"
+    )
+    owner: uuid.UUID = Field(foreign_key="public.users.id", nullable=False)
+    seat_count: str | None = Field(default=None, nullable=True)
+    owner_user: User = Relationship(back_populates="owned_cars")
     passengers: list["Passenger"] = Relationship(back_populates="car")
-    seat_count: int = 4
-    owner_user: User | None = Relationship(back_populates="owned_cars")
 
 
 class CarPublic(CarBase):
-    id: int
-    trip_id: int
+    id: uuid.UUID
+    trip_id: uuid.UUID
     owner: UserPublic
     passengers: list[UserPublic] = Field(default_factory=list)
     seat_count: int = 4
@@ -51,17 +60,23 @@ class PassengerBase(ConfiguredBaseModel):
 
 class Passenger(SQLModel, table=True):
     __tablename__ = "passengers"
+
     user_id: uuid.UUID = Field(
-        foreign_key="public.users.id", primary_key=True, ondelete="CASCADE"
+        foreign_key="public.users.id",
+        primary_key=True,
+        nullable=False,
+        ondelete="CASCADE",
     )
-    car_id: int = Field(foreign_key="cars.id", primary_key=True, ondelete="CASCADE")
-    seat_position: int
-    car: "Car" = Relationship(back_populates="passengers")
+    car_id: uuid.UUID = Field(
+        foreign_key="cars.id", primary_key=True, nullable=False, ondelete="CASCADE"
+    )
+    seat_position: int | None = Field(default=None)
+    car: Car = Relationship(back_populates="passengers")
 
 
 class PassengerPublic(PassengerBase):
     user_id: uuid.UUID
-    car_id: int
+    car_id: uuid.UUID
     seat_position: int
 
 

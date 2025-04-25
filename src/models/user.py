@@ -20,9 +20,9 @@ class User(SQLModel, table=True):
     __tablename__ = "users"
     __table_args__ = {"schema": "public", "extend_existing": True}
     id: uuid.UUID = Field(primary_key=True)
-    phone: str = Field()
-    firstname: str | None
-    lastname: str | None
+    phone: str | None = Field(default=None, max_length=15)
+    firstname: str | None = Field(default=None, max_length=30)
+    lastname: str | None = Field(default=None, max_length=30)
     owned_trips: list["Trip"] = Relationship(back_populates="owner_user")
     owned_cars: list["Car"] = Relationship(back_populates="owner_user")
 

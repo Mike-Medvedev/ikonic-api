@@ -47,7 +47,7 @@ def get_trips(session: SessionDep, user: SecurityDep) -> dict:
     response_model=DTO[TripPublic],
     dependencies=[Depends(get_current_user)],
 )
-async def get_trip(trip_id: int, session: SessionDep) -> dict:
+async def get_trip(trip_id: str, session: SessionDep) -> dict:
     """Return a specific trip for a user."""
     query = (
         select(Trip).options(selectinload(Trip.owner_user)).where(Trip.id == trip_id)
@@ -95,7 +95,7 @@ async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep) 
     response_model=DTO[TripPublic],
     dependencies=[Depends(get_current_user)],
 )
-async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep) -> dict:
+async def update_trip(trip: TripUpdate, trip_id: str, session: SessionDep) -> dict:
     """Update existing trip data and refetch updated trip with owner."""
     trip_db = session.get(Trip, trip_id)
     resource = "Trip"
@@ -123,7 +123,7 @@ async def update_trip(trip: TripUpdate, trip_id: int, session: SessionDep) -> di
 
 
 @router.delete("/{trip_id}", dependencies=[Depends(get_current_user)])
-def delete_trip(trip_id: int, session: SessionDep) -> dict:
+def delete_trip(trip_id: str, session: SessionDep) -> dict:
     """Delete the specified trip."""
     trip_db = session.get(Trip, trip_id)
     resource = "Trip"

@@ -6,7 +6,7 @@ Defines the database tables and relationships for trips in trip planning.
 import uuid
 from datetime import date
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, text
 
 from models.car import Car
 from models.user import User, UserPublic
@@ -24,15 +24,23 @@ class TripBase(ConfiguredBaseModel):
 
 class Trip(SQLModel, table=True):
     __tablename__ = "trips"
-    id: int | None = Field(default=None, primary_key=True)
-    owner: uuid.UUID = Field(foreign_key="public.users.id")
-    title: str
-    start_date: date
-    end_date: date
-    mountain: str
-    desc: str | None = None
-    cars: list[Car] = Relationship()
+
+    id: uuid.UUID = Field(
+        default=None,
+        primary_key=True,
+        index=True,
+        nullable=False,
+        sa_column_kwargs={"server_default": text("gen_random_uuid()")},
+    )
+
+    owner: uuid.UUID = Field(foreign_key="public.users.id", nullable=False)
+    title: str = Field(nullable=False)
+    start_date: date = Field(nullable=False)
+    end_date: date = Field(nullable=False)
+    mountain: str = Field(max_length=50, nullable=False)
+    desc: str | None = Field(default=None)
     owner_user: User = Relationship(back_populates="owned_trips")
+    cars: list[Car] = Relationship()
 
 
 class TripCreate(TripBase):
@@ -48,7 +56,7 @@ class TripUpdate(ConfiguredBaseModel):
 
 
 class TripPublic(TripBase):
-    id: int
+    id: uuid.UUID
     owner: UserPublic
 
 
@@ -59,10 +67,13 @@ class TripParticipationBase(ConfiguredBaseModel):
 
 class TripParticipation(SQLModel, table=True):
     __tablename__ = "trips_users_map"
-    trip_id: int = Field(primary_key=True, foreign_key="trips.id")
-    rsvp: str | None = Field(default=None)
-    paid: int | None = None
-    user_id: uuid.UUID = Field(primary_key=True, foreign_key="public.users.id")
+
+    trip_id: uuid.UUID = Field(foreign_key="trips.id", primary_key=True, nullable=False)
+    user_id: uuid.UUID = Field(
+        foreign_key="public.users.id", primary_key=True, nullable=False
+    )
+    rsvp: str | None = Field(default=None, max_length=10)
+    paid: int | None = Field(default=None)
 
 
 class TripParticipationRsvp(TripParticipationBase):

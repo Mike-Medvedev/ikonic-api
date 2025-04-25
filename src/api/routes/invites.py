@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
     response_model=DTO[AttendanceList],
     dependencies=[Depends(get_current_user)],
 )
-def get_invited_users(trip_id: int, session: SessionDep) -> dict:
+def get_invited_users(trip_id: str, session: SessionDep) -> dict:
     """Return Invited Users for a trip."""
     statement = (
         select(User, TripParticipation.rsvp)
@@ -55,7 +55,7 @@ def get_invited_users(trip_id: int, session: SessionDep) -> dict:
     dependencies=[Depends(get_current_user)],
 )
 def invite_user(
-    trip_id: int,
+    trip_id: str,
     user_id: UUID,
     deep_link: DeepLink,
     session: SessionDep,
@@ -86,7 +86,7 @@ def invite_user(
     dependencies=[Depends(get_current_user)],
 )
 def rsvp(
-    trip_id: int, user_id: UUID, res: TripParticipationRsvp, session: SessionDep
+    trip_id: str, user_id: UUID, res: TripParticipationRsvp, session: SessionDep
 ) -> dict:
     """RSVP to a trip invite."""
     participation = session.get(TripParticipation, (trip_id, user_id))
