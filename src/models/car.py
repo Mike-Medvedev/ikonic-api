@@ -55,6 +55,7 @@ class CarPublic(CarBase):
 
 
 class PassengerBase(ConfiguredBaseModel):
+    user_id: uuid.UUID
     seat_position: int
 
 

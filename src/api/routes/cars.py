@@ -17,7 +17,6 @@ from models.car import (
     PassengerPublic,
 )
 from models.shared import DTO
-from models.user import User
 
 router = APIRouter(prefix="/trips/{trip_id}/cars", tags=["cars"])
 
@@ -94,7 +93,6 @@ def delete_car(trip_id: str, car_id: str, session: SessionDep) -> dict:
 def add_passenger(
     trip_id: str,
     car_id: str,
-    user: SecurityDep,
     passenger: PassengerCreate,
     session: SessionDep,
 ) -> dict:
@@ -104,12 +102,8 @@ def add_passenger(
     if not car or car.trip_id != trip_id:
         raise ResourceNotFoundError(resource, car_id)
 
-    user = session.get(User, user.id)
-    resource = "User"
-    if not user:
-        raise ResourceNotFoundError(resource, user.id)
     # TODO: fix logic and decide whether to have role based passenger selection
-    new_passenger = Passenger(**passenger.model_dump(), user_id=user.id, car_id=car_id)
+    new_passenger = Passenger(**passenger.model_dump(), car_id=car_id)
     session.add(new_passenger)
     session.commit()
     session.refresh(new_passenger)
