@@ -8,8 +8,8 @@ from sqlmodel import select
 
 from core.exceptions import ResourceNotFoundError
 from models.shared import DTO
-from models.user import User, UserPublic
-from src.api.deps import SessionDep, get_current_user
+from models.user import User, UserPublic, UserUpdate
+from src.api.deps import SecurityDep, SessionDep, get_current_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -39,3 +39,36 @@ def get_user_by_id(user_id: UUID, session: SessionDep) -> dict:
         raise ResourceNotFoundError(resource_type, user_id)
     logger.info("Successfully fetched user %s by ID: %s", user, user_id)
     return {"data": user}
+
+
+@router.patch(
+    "/{user_id}",
+    dependencies=[Depends(get_current_user)],
+    response_model=DTO[UserPublic],
+)
+def update_user(user_id: UUID, user: UserUpdate, session: SessionDep) -> dict:
+    """Update a user."""
+    user_db = session.get(User, user_id)
+    if not user_db:
+        raise ResourceNotFoundError("User", user_id)
+    updated_user = user.model_dump(exclude_unset=True)
+    user_db.sqlmodel_update(updated_user)
+    session.add(user_db)
+    session.commit()
+    session.refresh(user_db)
+    return {"data": user_db}
+
+
+@router.post(
+    "/onboarding",
+    response_model=DTO[bool],
+)
+def complete_onboarding(user: SecurityDep, session: SessionDep) -> dict:
+    """Mark the currently authenticated user as having completed onboarding."""
+    user_db = session.get(User, user.id)
+    if not user_db:
+        raise ResourceNotFoundError("User", user.id)
+    user_db.is_onboarded = True
+    session.add(user_db)
+    session.commit()
+    return {"data": True}

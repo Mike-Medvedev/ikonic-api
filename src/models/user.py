@@ -23,6 +23,8 @@ class User(SQLModel, table=True):
     phone: str | None = Field(default=None, max_length=15)
     firstname: str | None = Field(default=None, max_length=30)
     lastname: str | None = Field(default=None, max_length=30)
+    username: str | None = Field(default=None, max_length=30)
+    is_onboarded: bool = Field(default=False)
     owned_trips: list["Trip"] = Relationship(back_populates="owner_user")
     owned_cars: list["Car"] = Relationship(back_populates="owner_user")
 
@@ -32,3 +34,11 @@ class UserPublic(ConfiguredBaseModel):
     phone: str
     firstname: str | None
     lastname: str | None
+    is_onboarded: bool
+
+
+class UserUpdate(ConfiguredBaseModel):
+    phone: str | None = None
+    firstname: str | None = None
+    lastname: str | None = None
+    username: str | None = None
