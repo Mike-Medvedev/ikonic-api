@@ -1,6 +1,7 @@
 """FastAPI endpoints for querying and retrieving trips data."""
 
 import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import selectinload
@@ -22,15 +23,22 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/", response_model=DTO[list[TripPublic]])
-def get_trips(session: SessionDep, user: SecurityDep) -> dict:
+def get_trips(session: SessionDep, user: SecurityDep, *, past: bool = False) -> dict:
     """Return all trips for a user."""
-    query = (
+    base_query = (
         select(Trip)
         .join(TripParticipation, Trip.id == TripParticipation.trip_id)
         .options(selectinload(Trip.owner_user))
         .where(TripParticipation.user_id == user.id)
     )
-    trips = session.exec(query).all()
+
+    if past:
+        today_utc = datetime.now(UTC).date()
+        final_query = base_query.where(Trip.end_date < today_utc)
+    else:
+        final_query = base_query
+
+    trips = session.exec(final_query).all()
     trips_public = [
         TripPublic(
             **trip.model_dump(exclude={"owner"}),

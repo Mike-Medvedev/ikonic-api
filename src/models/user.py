@@ -7,8 +7,8 @@ import uuid
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column  # Import Column for sa_column
-from sqlalchemy import Enum as SQLAlchemyEnum  # Import SQLAlchemy's Enum
+from sqlalchemy import Column
+from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlmodel import CheckConstraint, Field, Relationship, SQLModel
 
 from .model_config import ConfiguredBaseModel
