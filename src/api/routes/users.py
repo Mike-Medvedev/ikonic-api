@@ -72,3 +72,16 @@ def complete_onboarding(user: SecurityDep, session: SessionDep) -> dict:
     session.add(user_db)
     session.commit()
     return {"data": True}
+
+
+@router.get(
+    "/{user_id}/friends",
+    dependencies=[Depends(get_current_user)],
+    response_model=DTO[list[UserPublic]],
+)
+def get_friends(session: SessionDep, user_id: str) -> dict:
+    """Fetch a friends list for a specific."""
+    user: User = session.get(User, user_id)
+    if not user:
+        raise ResourceNotFoundError("User", user.id)
+    return {"data": user.friends}
