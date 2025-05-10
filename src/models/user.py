@@ -35,6 +35,8 @@ class User(SQLModel, table=True):
     lastname: str | None = Field(default=None, max_length=30)
     username: str | None = Field(default=None, max_length=30)
     is_onboarded: bool = Field(default=False)
+    avatar_storage_path: str | None = Field(default=None)
+    avatar_public_url: str | None = Field(default=None)
     owned_trips: list["Trip"] = Relationship(back_populates="owner_user")
     owned_cars: list["Car"] = Relationship(back_populates="owner_user")
     friendships_as_user1: list["Friendships"] = Relationship(
@@ -123,6 +125,7 @@ class UserPublic(ConfiguredBaseModel):
     firstname: str | None
     lastname: str | None
     is_onboarded: bool
+    avatar_public_url: str | None
 
 
 class UserUpdate(ConfiguredBaseModel):
@@ -130,3 +133,4 @@ class UserUpdate(ConfiguredBaseModel):
     firstname: str | None = None
     lastname: str | None = None
     username: str | None = None
+    avatar_storage_path: str | None = None
