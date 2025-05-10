@@ -26,6 +26,11 @@ class FriendshipStatus(Enum):
     BLOCKED = "blocked"
 
 
+class RiderType(Enum):
+    SKIER = "skier"
+    SNOWBOARDER = "snowboarder"
+
+
 class User(SQLModel, table=True):
     __tablename__ = "users"
     __table_args__ = {"schema": "public"}
@@ -34,6 +39,20 @@ class User(SQLModel, table=True):
     firstname: str | None = Field(default=None, max_length=30)
     lastname: str | None = Field(default=None, max_length=30)
     username: str | None = Field(default=None, max_length=30)
+    rider_type: RiderType | None = Field(
+        default=None,
+        sa_column=Column(
+            SQLAlchemyEnum(
+                RiderType,  # Pass your Python enum class directly
+                name="rider_type",  # Matches your PG ENUM catalog type name
+                create_constraint=True,  # For non-native enums; for native, it might be ignored or useful
+                native_enum=True,  # Crucial for PostgreSQL to use the native ENUM type
+                values_callable=lambda obj: [
+                    e.value for e in obj
+                ],  # Ensures it uses the .value attribute
+            )
+        ),
+    )
     is_onboarded: bool = Field(default=False)
     avatar_storage_path: str | None = Field(default=None)
     avatar_public_url: str | None = Field(default=None)
@@ -124,6 +143,8 @@ class UserPublic(ConfiguredBaseModel):
     phone: str
     firstname: str | None
     lastname: str | None
+    username: str | None
+    rider_type: RiderType | None
     is_onboarded: bool
     avatar_public_url: str | None
 
@@ -133,4 +154,5 @@ class UserUpdate(ConfiguredBaseModel):
     firstname: str | None = None
     lastname: str | None = None
     username: str | None = None
+    rider_type: RiderType | None = None
     avatar_storage_path: str | None = None
