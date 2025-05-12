@@ -109,7 +109,6 @@ async def update_trip(trip: TripUpdate, trip_id: str, session: SessionDep) -> di
     resource = "Trip"
     if not trip_db:
         raise ResourceNotFoundError(resource, trip_id)
-
     trip_update_data = trip.model_dump(exclude_unset=True)
     trip_db.sqlmodel_update(trip_update_data)
     session.add(trip_db)

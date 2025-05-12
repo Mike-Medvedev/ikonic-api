@@ -39,6 +39,7 @@ class Trip(SQLModel, table=True):
     end_date: date = Field(nullable=False)
     mountain: str = Field(max_length=50, nullable=False)
     desc: str | None = Field(default=None)
+    trip_image_storage_path: str | None = Field(default=None)
     owner_user: User = Relationship(back_populates="owned_trips")
     cars: list[Car] = Relationship()
 
@@ -53,11 +54,13 @@ class TripUpdate(ConfiguredBaseModel):
     end_date: date | None = None
     mountain: str | None = None
     desc: str | None = None
+    trip_image_storage_path: str | None = None
 
 
 class TripPublic(TripBase):
     id: uuid.UUID
     owner: UserPublic
+    trip_image_storage_path: str | None
 
 
 class TripParticipationBase(ConfiguredBaseModel):

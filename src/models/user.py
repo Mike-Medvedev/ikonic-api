@@ -4,9 +4,11 @@ Defines the database tables and relationships for users
 """
 
 import uuid
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from pydantic import field_serializer
 from sqlalchemy import Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlmodel import CheckConstraint, Field, Relationship, SQLModel
@@ -147,6 +149,14 @@ class UserPublic(ConfiguredBaseModel):
     rider_type: RiderType | None
     is_onboarded: bool
     avatar_public_url: str | None
+
+    @field_serializer("avatar_public_url", when_used="unless-none")
+    def cache_bust(self, avatar_public_url: str | None) -> str | None:
+        """Append a timestamp query param to cache bust."""
+        if not avatar_public_url:
+            return None
+        timestamp = datetime.now()  # noqa: DTZ005
+        return f"{avatar_public_url}?t={timestamp}"
 
 
 class UserUpdate(ConfiguredBaseModel):
