@@ -3,6 +3,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import selectinload
 from sqlmodel import and_, or_, select
 
 from core.exceptions import ResourceNotFoundError
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.get(
-    "/",
+    "/me",
     response_model=DTO[list[UserPublic]],
 )
 def get_friends(session: SessionDep, user: SecurityDep) -> dict:
@@ -88,18 +89,40 @@ def check_friend_requests(user_id: str, session: SessionDep) -> dict:
     if not user:
         raise ResourceNotFoundError("User", user_id)
 
-    stmt = select(Friendships).where(
-        and_(
-            or_(
-                Friendships.user_id == user.id,
-                Friendships.friend_id == user.id,
-            ),
-            # Friendships.initiator_id != user.id,
-            Friendships.status == FriendshipStatus.PENDING,
+    stmt = (
+        select(Friendships)
+        .where(
+            and_(
+                or_(
+                    Friendships.user_id
+                    == user.id,  # check whether our user is a user or a friend
+                    Friendships.friend_id == user.id,
+                ),
+                # Friendships.initiator_id != user.id, if initiator does not equal id then we will not recieve pending requests the user made (outgoing)
+                Friendships.status == FriendshipStatus.PENDING,
+            )
+        )
+        .options(  # solve N + 1 query problem (sqlalchemy lazy load by defautl)
+            selectinload(Friendships.user1_obj),
+            selectinload(Friendships.user2_obj),
         )
     )
 
-    results = session.exec(stmt).all()
+    results = session.exec(
+        stmt
+    ).all()  # retrieve friendship records that include our user
+
+    # Convert Friendships DB models to FriendshipPublic Pydantic models
+    friendship_public_list: list[FriendshipPublic] = []
+    for fs_db in results:
+        try:
+            public_model = FriendshipPublic.model_validate(fs_db)
+            friendship_public_list.append(public_model)
+        except Exception:
+            logger.exception(
+                "Error converting Friendship DB object %s to Public", fs_db
+            )
+
     return {"data": results}
 
 
@@ -107,7 +130,7 @@ def check_friend_requests(user_id: str, session: SessionDep) -> dict:
 def response_friend_request(
     user: SecurityDep, friendship_update: FriendshipUpdate, session: SessionDep
 ) -> dict:
-    """Handle a friend request response."""
+    """Update a friend request based on friend response."""
     user = session.get(User, user.id)
     if not user:
         raise ResourceNotFoundError("User", user.id)
@@ -124,11 +147,15 @@ def response_friend_request(
     if friendship_to_update.initiator_id == user.id:
         raise HTTPException(400, detail="Cannot accept your own friend request.")
     # Ensure the current user is involved in this friendship
-    if user.id not in (friendship_update.user_id, friendship_update.friend_id):
+    if str(user.id) not in (
+        str(friendship_update.user_id),
+        str(friendship_update.friend_id),
+    ):
         raise HTTPException(
             status_code=403,
             detail="You can only update friendship requests you're involved in.",
         )
+
     friendship_to_update.status = friendship_update.status
     session.add(friendship_to_update)
     session.commit()

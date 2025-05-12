@@ -7,6 +7,7 @@ import uuid
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from pydantic import Field as PydanticField
 from sqlalchemy import Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlmodel import CheckConstraint, Field, Relationship, SQLModel
@@ -71,8 +72,8 @@ class Friendships(SQLModel, table=True):
 
 
 class FriendshipPublic(ConfiguredBaseModel):
-    user_id: uuid.UUID
-    friend_id: uuid.UUID
+    user: "User" = PydanticField(validation_alias="user1_obj")
+    friend: "User" = PydanticField(validation_alias="user2_obj")
     initiator_id: uuid.UUID
     status: FriendshipStatus
 
