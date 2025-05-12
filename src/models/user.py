@@ -11,7 +11,9 @@ from typing import TYPE_CHECKING
 from pydantic import field_serializer
 from sqlalchemy import Column
 from sqlalchemy import Enum as SQLAlchemyEnum
-from sqlmodel import CheckConstraint, Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+
+from models.friendship import Friendships, FriendshipStatus
 
 from .model_config import ConfiguredBaseModel
 
@@ -19,13 +21,6 @@ from .model_config import ConfiguredBaseModel
 if TYPE_CHECKING:
     from models.car import Car
     from models.trip import Trip
-
-
-class FriendshipStatus(Enum):
-    PENDING = "pending"
-    ACCEPTED = "accepted"
-    REJECTED = "rejected"
-    BLOCKED = "blocked"
 
 
 class RiderType(Enum):
@@ -60,7 +55,7 @@ class User(SQLModel, table=True):
     avatar_public_url: str | None = Field(default=None)
     owned_trips: list["Trip"] = Relationship(back_populates="owner_user")
     owned_cars: list["Car"] = Relationship(back_populates="owner_user")
-    friendships_as_user1: list["Friendships"] = Relationship(
+    friendships_as_user1: list[Friendships] = Relationship(
         back_populates="user1_obj",
         sa_relationship_kwargs={
             "foreign_keys": "[Friendships.user_id]",
@@ -69,7 +64,7 @@ class User(SQLModel, table=True):
         },
     )
 
-    friendships_as_user2: list["Friendships"] = Relationship(
+    friendships_as_user2: list[Friendships] = Relationship(
         back_populates="user2_obj",
         sa_relationship_kwargs={
             "foreign_keys": "[Friendships.friend_id]",
@@ -93,51 +88,6 @@ class User(SQLModel, table=True):
             for fs_entry in self.friendships_as_user1
             if fs_entry.status == FriendshipStatus.ACCEPTED and fs_entry.user2_obj
         ]
-
-
-class Friendships(SQLModel, table=True):
-    __tablename__ = "friendships"
-    __table_args__ = (
-        CheckConstraint("user_id < friend_id", name="ck_friendship_order"),
-        {"schema": "public"},
-    )
-    user_id: uuid.UUID = Field(
-        foreign_key="public.users.id", primary_key=True, nullable=False
-    )
-    friend_id: uuid.UUID = Field(
-        foreign_key="public.users.id", primary_key=True, nullable=False
-    )
-
-    initiator_id: uuid.UUID = Field(foreign_key="public.users.id", nullable=False)
-
-    status: FriendshipStatus = Field(
-        default=FriendshipStatus.PENDING,
-        sa_column=Column(
-            SQLAlchemyEnum(
-                FriendshipStatus,  # Pass your Python enum class directly
-                name="friendship_status",  # Matches your PG ENUM catalog type name
-                create_constraint=True,  # For non-native enums; for native, it might be ignored or useful
-                native_enum=True,  # Crucial for PostgreSQL to use the native ENUM type
-                values_callable=lambda obj: [
-                    e.value for e in obj
-                ],  # Ensures it uses the .value attribute
-            )
-        ),
-    )
-    user1_obj: User = Relationship(
-        back_populates="friendships_as_user1",
-        sa_relationship_kwargs={
-            "primaryjoin": "Friendships.user_id == User.id",
-            "foreign_keys": "[Friendships.user_id]",
-        },
-    )
-    user2_obj: User = Relationship(
-        back_populates="friendships_as_user2",
-        sa_relationship_kwargs={
-            "primaryjoin": "Friendships.friend_id == User.id",
-            "foreign_keys": "[Friendships.friend_id]",
-        },
-    )
 
 
 class UserPublic(ConfiguredBaseModel):

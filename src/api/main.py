@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from api.routes import cars, invites, trips, users
+from api.routes import cars, friendships, invites, trips, users
 
 api_router = APIRouter()
 
@@ -17,3 +17,4 @@ api_router.include_router(users.router)
 api_router.include_router(trips.router)
 api_router.include_router(cars.router)
 api_router.include_router(invites.router)
+api_router.include_router(friendships.router)
