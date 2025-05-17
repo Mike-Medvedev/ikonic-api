@@ -1,6 +1,7 @@
 """FastAPI endpoints for querying and mutating friendship entities."""
 
 import logging
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
@@ -41,33 +42,47 @@ def get_friends(session: SessionDep, user: SecurityDep) -> dict:
 
 @router.post("/", response_model=DTO[bool])
 def create_friend_request(
-    friendship_create: FriendshipCreate,
+    friendship_create: FriendshipCreate,  # Assuming addressee_id is uuid.UUID in this model
     session: SessionDep,
     user: SecurityDep,
 ) -> dict:
     """Create a new friend request. The current user is the requester."""
-    requester_id = user.id
-    addressee_id = friendship_create.addressee_id
+    # --- Current User ID Conversion (if needed) ---
+    current_user_id_str = user.id  # Assuming this is still a string from SecurityDep
+    try:
+        current_user_uuid: uuid.UUID = uuid.UUID(current_user_id_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid user ID format in security token: {current_user_id_str}",
+        )
 
-    if requester_id == addressee_id:
+    # --- Addressee ID is ALREADY a UUID from Pydantic model ---
+    # No conversion needed for friendship_create.addressee_id if it's typed as uuid.UUID in FriendshipCreate
+    addressee_uuid: uuid.UUID = friendship_create.addressee_id
+    # --- End Addressee ID Handling ---
+
+    if current_user_uuid == addressee_uuid:
         raise HTTPException(
             status_code=400, detail="Cannot send a friend request to yourself."
         )
 
-    addressee_user = session.get(User, addressee_id)
-    if not addressee_user:
-        raise ResourceNotFoundError("user", addressee_id)
+    addressee_user_object = session.get(User, addressee_uuid)
+    if not addressee_user_object:
+        # For the error message, you might want to convert the UUID back to string
+        # if the client expects a string representation they sent.
+        raise ResourceNotFoundError("user", str(addressee_uuid))
 
-    # 3. Check if a friendship (in any order or status) already exists
-    #    This uses the LEAST/GREATEST functions to match the unique index logic.
-    #    This check helps provide a user-friendly error before hitting DB constraint.
-    id_1 = func.least(requester_id, addressee_id)
-    id_2 = func.greatest(requester_id, addressee_id)
+    sorted_ids = sorted([current_user_uuid, addressee_uuid])
+    param_id1_val: uuid.UUID = sorted_ids[0]
+    param_id2_val: uuid.UUID = sorted_ids[1]
 
     stmt_exists = select(Friendships).where(
         and_(
-            func.least(Friendships.requester_id, Friendships.addressee_id) == id_1,
-            func.greatest(Friendships.requester_id, Friendships.addressee_id) == id_2,
+            func.least(Friendships.requester_id, Friendships.addressee_id)
+            == param_id1_val,
+            func.greatest(Friendships.requester_id, Friendships.addressee_id)
+            == param_id2_val,
         )
     )
     existing_friendship = session.exec(stmt_exists).first()
@@ -78,21 +93,14 @@ def create_friend_request(
         elif existing_friendship.status == FriendshipStatus.ACCEPTED:
             detail_msg = "These users are already friends."
         elif existing_friendship.status == FriendshipStatus.BLOCKED:
-            # You might want different behavior/message for blocked status
             detail_msg = "A friendship interaction is blocked between these users."
-        else:  # REJECTED or other states
-            # If a request was rejected, you might allow a new one.
-            # For now, let's treat any existing record as a conflict to simplify.
-            # If you want to allow re-request after rejection, remove this branch
-            # and the database will handle it or you might update the existing record's status.
+        else:
             detail_msg = "A previous friendship interaction exists between these users."
-        raise HTTPException(status_code=409, detail=detail_msg)  # 409 Conflict
+        raise HTTPException(status_code=409, detail=detail_msg)
 
-    # 4. Create new friendship record
-    #    The 'status' will default to PENDING as per your Friendships model definition.
     new_friendship = Friendships(
-        requester_id=requester_id,
-        addressee_id=addressee_id,
+        requester_id=current_user_uuid,
+        addressee_id=addressee_uuid,
     )
 
     session.add(new_friendship)
@@ -100,7 +108,15 @@ def create_friend_request(
         session.commit()
     except Exception as exc:
         session.rollback()
+        logger.exception(
+            f"Database commit failed when creating friendship. Payload: requester_id={current_user_uuid}, addressee_id={addressee_uuid}"
+        )
+        logger.exception(
+            "Original database error was:"
+        )  # This will print the full traceback of 'exc'
+        # --- END LOGGING ---
 
+        # Log exc
         raise HTTPException(
             status_code=500,
             detail="Could not create friend request due to a database error.",
@@ -133,11 +149,15 @@ def check_friend_requests(
         user_involvement_condition = or_(
             Friendships.requester_id == user.id, Friendships.addressee_id == user.id
         )
-    query = select(Friendships).where(
-        and_(
-            user_involvement_condition,
-            Friendships.status == FriendshipStatus.PENDING,
-        ).options(  # solve N + 1 query problem (sqlalchemy lazy load by defautl)
+    query = (
+        select(Friendships)
+        .where(
+            and_(
+                user_involvement_condition,
+                Friendships.status == FriendshipStatus.PENDING,
+            )
+        )
+        .options(  # solve N + 1 query problem (sqlalchemy lazy load by defautl)
             selectinload(Friendships.requester),
             selectinload(Friendships.addressee),
         )
@@ -173,7 +193,10 @@ def respond_to_friend_request(
         raise ResourceNotFoundError("Friendship", friendship_id)
 
     #    Only the addressee can accept or reject a pending request.
-    if friendship_to_update.addressee_id != user.id:
+    if friendship_to_update.addressee_id != uuid.UUID(user.id):
+        logger.info(
+            f"Responding to friendship request: {friendship_to_update.addressee_id}, by user: {user.id}"
+        )
         # This also implicitly covers the case where the requester tries to respond.
         # It also covers cases where a completely unrelated user tries to meddle.
         raise HTTPException(

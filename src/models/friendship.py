@@ -68,12 +68,12 @@ class Friendships(SQLModel, table=True):
     )
 
     requester_id: uuid.UUID = Field(
-        foreign_key="user.id",  # Make sure 'user.id' matches your User table and its PK
+        foreign_key="public.users.id",
         nullable=False,
         index=True,  # Good to index foreign keys
     )
     addressee_id: uuid.UUID = Field(
-        foreign_key="user.id",  # Make sure 'user.id' matches your User table and its PK
+        foreign_key="public.users.id",
         nullable=False,
         index=True,  # Good to index foreign keys
     )
@@ -96,6 +96,8 @@ class Friendships(SQLModel, table=True):
         back_populates="friendships_initiated",
         sa_relationship_kwargs={
             "foreign_keys": "[Friendships.requester_id]",
+            "primaryjoin": "Friendships.requester_id == User.id ",
+            "lazy": "selectin",
         },
     )
 
@@ -103,6 +105,8 @@ class Friendships(SQLModel, table=True):
         back_populates="friendships_received",
         sa_relationship_kwargs={
             "foreign_keys": "[Friendships.addressee_id]",
+            "primaryjoin": "Friendships.addressee_id == User.id",
+            "lazy": "selectin",
         },
     )
 

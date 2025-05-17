@@ -55,18 +55,22 @@ class User(SQLModel, table=True):
     owned_cars: list["Car"] = Relationship(back_populates="owner_user")
 
     # Friendships where this user is the requester
-    friendships_initiated: list[Friendships] = Relationship(
-        back_populates="requester",  # Matches 'requester' attribute in Friendships
+    friendships_initiated: list["Friendships"] = Relationship(
+        back_populates="requester",
         sa_relationship_kwargs={
             "foreign_keys": "[Friendships.requester_id]",
+            "primaryjoin": "User.id == Friendships.requester_id",
+            "lazy": "selectin",
         },
     )
 
     # Friendships where this user is the addressee
-    friendships_received: list[Friendships] = Relationship(
-        back_populates="addressee",  # Matches 'addressee' attribute in Friendships
+    friendships_received: list["Friendships"] = Relationship(
+        back_populates="addressee",
         sa_relationship_kwargs={
             "foreign_keys": "[Friendships.addressee_id]",
+            "primaryjoin": "User.id == Friendships.addressee_id",
+            "lazy": "selectin",
         },
     )
 
@@ -110,7 +114,7 @@ class User(SQLModel, table=True):
 
                 detailed_friends.append(
                     UserWithFriendshipInfo(
-                        friend=friend_user_public, friendship_id=friendship.id
+                        user=friend_user_public, friendship_id=friendship.id
                     )
                 )
 
