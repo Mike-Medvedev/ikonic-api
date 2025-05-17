@@ -10,7 +10,16 @@ from typing import TYPE_CHECKING
 from pydantic import Field as PydanticField
 from sqlalchemy import Column
 from sqlalchemy import Enum as SQLAlchemyEnum
-from sqlmodel import CheckConstraint, Field, Relationship, SQLModel
+from sqlmodel import (
+    CheckConstraint,
+    Field,
+    Index,
+    Relationship,
+    SQLModel,
+    column,
+    func,
+    text,
+)
 
 from .model_config import ConfiguredBaseModel
 
@@ -26,20 +35,48 @@ class FriendshipStatus(Enum):
     BLOCKED = "blocked"
 
 
+class FriendRequestType(str, Enum):
+    OUTGOING = "outgoing"
+    INCOMING = "incoming"
+
+
 class Friendships(SQLModel, table=True):
     __tablename__ = "friendships"
+
     __table_args__ = (
-        CheckConstraint("user_id < friend_id", name="ck_friendship_order"),
+        CheckConstraint(text("requester_id <> addressee_id")),
+        # Note: PostgreSQL might auto-generate a name if you omit `name`.
+        # Providing a name ensures consistency. Your DDL implies an auto-generated name.
+        # If you want SQLModel to not specify a name, omit the `name` argument.
+        # CREATE UNIQUE INDEX unique_friendship_pair
+        # ON Friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
+        Index(
+            "unique_friendship_pair",
+            func.least(column("requester_id"), column("addressee_id")),
+            func.greatest(
+                column("requester_id"), column("addressee_id")
+            ),  # Corrected order of args if it was swapped
+            unique=True,
+        ),
         {"schema": "public"},
     )
-    user_id: uuid.UUID = Field(
-        foreign_key="public.users.id", primary_key=True, nullable=False
-    )
-    friend_id: uuid.UUID = Field(
-        foreign_key="public.users.id", primary_key=True, nullable=False
+    id: uuid.UUID | None = Field(
+        primary_key=True,
+        index=True,  # Good to index PKs
+        nullable=False,
+        sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
 
-    initiator_id: uuid.UUID = Field(foreign_key="public.users.id", nullable=False)
+    requester_id: uuid.UUID = Field(
+        foreign_key="user.id",  # Make sure 'user.id' matches your User table and its PK
+        nullable=False,
+        index=True,  # Good to index foreign keys
+    )
+    addressee_id: uuid.UUID = Field(
+        foreign_key="user.id",  # Make sure 'user.id' matches your User table and its PK
+        nullable=False,
+        index=True,  # Good to index foreign keys
+    )
 
     status: FriendshipStatus = Field(
         default=FriendshipStatus.PENDING,
@@ -55,36 +92,31 @@ class Friendships(SQLModel, table=True):
             )
         ),
     )
-    user1_obj: "User" = Relationship(
-        back_populates="friendships_as_user1",
+    requester: "User" = Relationship(
+        back_populates="friendships_initiated",
         sa_relationship_kwargs={
-            "primaryjoin": "Friendships.user_id == User.id",
-            "foreign_keys": "[Friendships.user_id]",
+            "foreign_keys": "[Friendships.requester_id]",
         },
     )
-    user2_obj: "User" = Relationship(
-        back_populates="friendships_as_user2",
+
+    addressee: "User" = Relationship(
+        back_populates="friendships_received",
         sa_relationship_kwargs={
-            "primaryjoin": "Friendships.friend_id == User.id",
-            "foreign_keys": "[Friendships.friend_id]",
+            "foreign_keys": "[Friendships.addressee_id]",
         },
     )
 
 
 class FriendshipPublic(ConfiguredBaseModel):
-    user: "User" = PydanticField(validation_alias="user1_obj")
-    friend: "User" = PydanticField(validation_alias="user2_obj")
-    initiator_id: uuid.UUID
+    id: uuid.UUID
+    requester: "User" = PydanticField(validation_alias="requester")
+    addressee: "User" = PydanticField(validation_alias="addressee")
     status: FriendshipStatus
 
 
 class FriendshipCreate(ConfiguredBaseModel):
-    user_id: str
-    friend_id: str
-    initiator_id: str
+    addressee_id: uuid.UUID
 
 
 class FriendshipUpdate(ConfiguredBaseModel):
-    user_id: str
-    friend_id: str
     status: FriendshipStatus

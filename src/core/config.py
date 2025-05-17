@@ -10,6 +10,17 @@ from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from rich.logging import RichHandler
 
+uvicorn_logger = logging.getLogger("uvicorn")
+uvicorn_error_logger = logging.getLogger("uvicorn.error")
+uvicorn_access_logger = logging.getLogger("uvicorn.access")
+starlette_logger = logging.getLogger("starlette")
+
+
+uvicorn_logger.propagate = False
+uvicorn_error_logger.propagate = False
+uvicorn_access_logger.propagate = False
+starlette_logger.propagate = False
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
@@ -18,7 +29,7 @@ class Settings(BaseSettings):
         level=logging.INFO,
         format="%(name)s | %(message)s",
         datefmt="[%X]",
-        handlers=[RichHandler(markup=True, show_path=True)],
+        handlers=[RichHandler(markup=True, show_path=True, rich_tracebacks=True)],
     )
 
     PROJECT_NAME: str

@@ -53,39 +53,68 @@ class User(SQLModel, table=True):
     avatar_public_url: str | None = Field(default=None)
     owned_trips: list["Trip"] = Relationship(back_populates="owner_user")
     owned_cars: list["Car"] = Relationship(back_populates="owner_user")
-    friendships_as_user1: list[Friendships] = Relationship(
-        back_populates="user1_obj",
+
+    # Friendships where this user is the requester
+    friendships_initiated: list[Friendships] = Relationship(
+        back_populates="requester",  # Matches 'requester' attribute in Friendships
         sa_relationship_kwargs={
-            "foreign_keys": "[Friendships.user_id]",
-            "primaryjoin": "User.id == Friendships.user_id",
-            "lazy": "selectin",
+            "foreign_keys": "[Friendships.requester_id]",
         },
     )
 
-    friendships_as_user2: list[Friendships] = Relationship(
-        back_populates="user2_obj",
+    # Friendships where this user is the addressee
+    friendships_received: list[Friendships] = Relationship(
+        back_populates="addressee",  # Matches 'addressee' attribute in Friendships
         sa_relationship_kwargs={
-            "foreign_keys": "[Friendships.friend_id]",
-            "primaryjoin": "User.id == Friendships.friend_id",
-            "lazy": "selectin",
+            "foreign_keys": "[Friendships.addressee_id]",
         },
     )
 
     @property
-    def friends(self) -> list["User"]:
-        """Returns a list of User objects who are accepted friends.
-
-        Friendships table maps (user1_obj, user2_obj)
+    def friends_with_details(self) -> list["UserWithFriendshipInfo"]:
+        """Returns a list of friends, each with their User object and the
+        ID of the friendship record.
         """
-        return [
-            fs_entry.user1_obj
-            for fs_entry in self.friendships_as_user2
-            if fs_entry.status == FriendshipStatus.ACCEPTED and fs_entry.user1_obj
-        ] + [
-            fs_entry.user2_obj
-            for fs_entry in self.friendships_as_user1
-            if fs_entry.status == FriendshipStatus.ACCEPTED and fs_entry.user2_obj
-        ]
+        detailed_friends: list[UserWithFriendshipInfo] = []
+
+        # Iterate through friendships initiated by this user
+        for friendship in self.friendships_initiated:
+            if (
+                friendship.status == FriendshipStatus.ACCEPTED
+                and friendship.addressee
+                and friendship.id
+            ):
+                # Convert the ORM User (friendship.addressee) to UserPublic Pydantic model
+                # This requires UserPublic to be importable and configured for from_orm/model_validate
+
+                friend_user_public = User.model_validate(
+                    friendship.addressee
+                )  # Pydantic v2
+
+                detailed_friends.append(
+                    UserWithFriendshipInfo(
+                        user=friend_user_public, friendship_id=friendship.id
+                    )
+                )
+
+        # Iterate through friendships received by this user
+        for friendship in self.friendships_received:
+            if (
+                friendship.status == FriendshipStatus.ACCEPTED
+                and friendship.requester
+                and friendship.id
+            ):
+                friend_user_public = User.model_validate(
+                    friendship.requester
+                )  # Pydantic v2
+
+                detailed_friends.append(
+                    UserWithFriendshipInfo(
+                        friend=friend_user_public, friendship_id=friendship.id
+                    )
+                )
+
+        return detailed_friends
 
 
 class UserPublic(ConfiguredBaseModel):
@@ -98,13 +127,10 @@ class UserPublic(ConfiguredBaseModel):
     is_onboarded: bool
     avatar_public_url: str | None
 
-    # @field_serializer("avatar_public_url", when_used="unless-none")
-    # def cache_bust(self, avatar_public_url: str | None) -> str | None:
-    #     """Append a timestamp query param to cache bust."""
-    #     if not avatar_public_url:
-    #         return None
-    #     timestamp = datetime.now()
-    #     return f"{avatar_public_url}?t={timestamp}"
+
+class UserWithFriendshipInfo(ConfiguredBaseModel):
+    user: UserPublic
+    friendship_id: uuid.UUID
 
 
 class UserUpdate(ConfiguredBaseModel):
