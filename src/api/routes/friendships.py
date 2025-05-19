@@ -51,11 +51,11 @@ def create_friend_request(
     current_user_id_str = user.id  # Assuming this is still a string from SecurityDep
     try:
         current_user_uuid: uuid.UUID = uuid.UUID(current_user_id_str)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=401,
             detail=f"Invalid user ID format in security token: {current_user_id_str}",
-        )
+        ) from exc
 
     # --- Addressee ID is ALREADY a UUID from Pydantic model ---
     # No conversion needed for friendship_create.addressee_id if it's typed as uuid.UUID in FriendshipCreate
@@ -130,7 +130,7 @@ def create_friend_request(
     dependencies=[Depends(get_current_user)],
     response_model=DTO[list[FriendshipPublic]],
 )
-def check_friend_requests(
+def get_friend_requests(
     user_id: str, request_type: FriendRequestType | None, session: SessionDep
 ) -> dict:
     """Get incoming or outgoing friend requests based on request_type."""
@@ -228,3 +228,29 @@ def respond_to_friend_request(
 
     response_data = FriendshipPublic.model_validate(friendship_to_update)
     return DTO(data=response_data)
+
+
+@router.delete("/{friendship_id}", response_model=DTO[bool])
+def delete_friendship(
+    session: SessionDep, user: SecurityDep, friendship_id: str
+) -> dict:
+    """Delete friendship record and handle edge cases."""
+    friendship_to_delete = session.get(Friendships, friendship_id)
+    logger.warning("Deleting friendship with id %s", friendship_id)
+    if not friendship_to_delete:
+        raise ResourceNotFoundError("friendship", friendship_id)
+    if uuid.UUID(user.id) not in (
+        friendship_to_delete.addressee_id,
+        friendship_to_delete.requester_id,
+    ):
+        logger.critical("User ID: %s", user.id)
+        raise HTTPException(
+            status_code=403, detail="Error user is not part of friendship"
+        )
+    if friendship_to_delete.status == FriendshipStatus.PENDING:
+        logger.warning(
+            "User is trying to delete a friendship that is still in pending state"
+        )
+    session.delete(friendship_to_delete)
+    session.commit()
+    return {"data": True}
