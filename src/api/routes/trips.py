@@ -8,8 +8,9 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from core.exceptions import ResourceNotFoundError
+from models.invitation import Invitation
 from models.shared import DTO
-from models.trip import Trip, TripCreate, TripParticipation, TripPublic, TripUpdate
+from models.trip import Trip, TripCreate, TripPublic, TripUpdate
 from models.user import User, UserPublic
 from src.api.deps import (
     SecurityDep,
@@ -27,9 +28,9 @@ def get_trips(session: SessionDep, user: SecurityDep, *, past: bool = False) -> 
     """Return all trips for a user."""
     base_query = (
         select(Trip)
-        .join(TripParticipation, Trip.id == TripParticipation.trip_id)
+        .join(Invitation, Trip.id == Invitation.trip_id)
         .options(selectinload(Trip.owner_user))
-        .where(TripParticipation.user_id == user.id)
+        .where(Invitation.user_id == user.id)
     )
 
     if past:
@@ -80,7 +81,7 @@ async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep) 
     session.add(new_trip)
     session.flush()
     # associate new trip with owner
-    participant = TripParticipation(
+    participant = Invitation(
         trip_id=new_trip.id,
         user_id=user.id,
         rsvp="accepted",  # default participation to accepted

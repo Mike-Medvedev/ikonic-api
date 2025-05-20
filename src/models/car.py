@@ -29,7 +29,7 @@ class CarUpdate(CarBase):
 
 class Car(SQLModel, table=True):
     __tablename__ = "cars"
-
+    __table_args__ = {"schema": "public"}
     id: uuid.UUID = Field(
         default=None,
         primary_key=True,
@@ -38,7 +38,7 @@ class Car(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
     trip_id: uuid.UUID = Field(
-        foreign_key="trips.id", nullable=False, ondelete="CASCADE"
+        foreign_key="public.trips.id", nullable=False, ondelete="CASCADE"
     )
     owner: uuid.UUID = Field(foreign_key="public.users.id", nullable=False)
     seat_count: str | None = Field(default=None, nullable=True)
@@ -61,7 +61,7 @@ class PassengerBase(ConfiguredBaseModel):
 
 class Passenger(SQLModel, table=True):
     __tablename__ = "passengers"
-
+    __table_args__ = {"schema": "public"}
     user_id: uuid.UUID = Field(
         foreign_key="public.users.id",
         primary_key=True,
@@ -69,7 +69,10 @@ class Passenger(SQLModel, table=True):
         ondelete="CASCADE",
     )
     car_id: uuid.UUID = Field(
-        foreign_key="cars.id", primary_key=True, nullable=False, ondelete="CASCADE"
+        foreign_key="public.cars.id",
+        primary_key=True,
+        nullable=False,
+        ondelete="CASCADE",
     )
     seat_position: int | None = Field(default=None)
     car: Car = Relationship(back_populates="passengers")

@@ -24,6 +24,7 @@ class TripBase(ConfiguredBaseModel):
 
 class Trip(SQLModel, table=True):
     __tablename__ = "trips"
+    __table_args__ = {"schema": "public"}
 
     id: uuid.UUID = Field(
         default=None,
@@ -33,7 +34,9 @@ class Trip(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
 
-    owner: uuid.UUID = Field(foreign_key="public.users.id", nullable=False)
+    owner: uuid.UUID = Field(
+        foreign_key="public.users.id", nullable=False, ondelete="CASCADE"
+    )
     title: str = Field(nullable=False)
     start_date: date = Field(nullable=False)
     end_date: date = Field(nullable=False)
