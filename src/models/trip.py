@@ -68,6 +68,10 @@ class TripParticipationBase(ConfiguredBaseModel):
     paid: int | None = None
 
 
+class TripParticipationCreate(ConfiguredBaseModel):
+    user_id: uuid.UUID
+
+
 class TripParticipation(SQLModel, table=True):
     __tablename__ = "trips_users_map"
 
@@ -75,7 +79,11 @@ class TripParticipation(SQLModel, table=True):
     user_id: uuid.UUID = Field(
         foreign_key="public.users.id", primary_key=True, nullable=False
     )
-    rsvp: str | None = Field(default=None, max_length=10)
+    rsvp: str | None = Field(
+        default=None,
+        max_length=10,
+        sa_column_kwargs={"server_default": text("'pending'")},
+    )
     paid: int | None = Field(default=None)
 
 

@@ -1,16 +1,20 @@
 """FastAPI endpoints for retrieving and querying trip invite data."""
 
 import logging
+import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from vonage_sms.errors import SmsError as VonageSmsError
 
-from core.exceptions import ResourceNotFoundError, SmsError
-from models.invite import AttendanceList, DeepLink
+from core.exceptions import ResourceNotFoundError
+from models.invite import AttendanceList, InviteBatchResponseData, InviteCreate
 from models.shared import DTO
-from models.trip import TripParticipation, TripParticipationRsvp
+from models.trip import (
+    TripParticipation,
+    TripParticipationRsvp,
+)
 from models.user import User
 from src.api.deps import (
     SessionDep,
@@ -49,35 +53,63 @@ def get_invited_users(trip_id: str, session: SessionDep) -> dict:
 
 
 @router.post(
-    "/invites/{user_id}",
-    response_model=DTO[bool],
-    status_code=201,
+    "/invites",
+    response_model=DTO[InviteBatchResponseData],
     dependencies=[Depends(get_current_user)],
 )
-def invite_user(
-    trip_id: str,
-    user_id: UUID,
-    deep_link: DeepLink,
+def invite_users(
+    trip_id: uuid.UUID,
+    payload: InviteCreate,
     session: SessionDep,
     vonage: VonageDep,
 ) -> dict:
-    """Invite a user to a trip."""
-    user = session.get(User, user_id)
-    resource = "User"
-    if not user:
-        raise ResourceNotFoundError(resource, user_id)
-    try:
-        send_sms_invte(user.phone, deep_link.deep_link, vonage)
-    except VonageSmsError as exc:
-        resource = "SMS"
-        raise SmsError(resource, user_id) from exc
-
-    # add user to trip in 'pending' state
-    record = TripParticipation(trip_id=trip_id, user_id=user_id)
-    session.add(record)
-    session.commit()
-
-    return {"data": True}
+    """Invite users to a trip."""
+    invites = payload.invites
+    deep_link = payload.deep_link
+    if not invites:
+        raise HTTPException(
+            status_code=400, detail="Please provide at least one user to invite."
+        )
+    records = []
+    phone_numbers_that_failed = []
+    for invite in invites:
+        user = session.get(User, invite.user_id)
+        participant = session.get(TripParticipation, (trip_id, invite.user_id))
+        if not user:
+            logger.warning("Inviting User who does not have an account yet")
+            continue
+        if participant:
+            logger.warning("User with id %s is already invited", user.id)
+            continue
+        if not user.phone:
+            logger.warning("User %s has no phone number. Skipping SMS.", user.id)
+            phone_numbers_that_failed.append("User_ID_%s}_NoPhone", user.id)
+            continue
+        try:
+            send_sms_invte(user.phone, deep_link, vonage)
+        except VonageSmsError:
+            phone_numbers_that_failed.append(user.phone)
+        else:
+            # add invited users to trips in 'pending' state
+            records.append(TripParticipation(trip_id=trip_id, **invite.model_dump()))
+    if records:
+        session.add_all(records)
+        session.commit()
+    if len(phone_numbers_that_failed) > 0:
+        return {
+            "data": InviteBatchResponseData(
+                all_invites_processed_successfully=False,
+                sms_failures_count=len(phone_numbers_that_failed),
+                sms_phone_number_failures=phone_numbers_that_failed,
+            )
+        }
+    return {
+        "data": InviteBatchResponseData(
+            all_invites_processed_successfully=True,
+            sms_failures_count=0,
+            sms_phone_number_failures=[],
+        )
+    }
 
 
 @router.patch(
