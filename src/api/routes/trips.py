@@ -1,6 +1,7 @@
 """FastAPI endpoints for querying and retrieving trips data."""
 
 import logging
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
@@ -82,6 +83,7 @@ async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep) 
     session.flush()
     # associate new trip with owner
     participant = Invitation(
+        id=uuid.uuid4(),
         trip_id=new_trip.id,
         user_id=user.id,
         rsvp="accepted",  # default participation to accepted
