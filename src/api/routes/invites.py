@@ -9,12 +9,14 @@ from sqlmodel import select
 from vonage_sms.errors import SmsError as VonageSmsError
 
 from core.exceptions import ResourceNotFoundError
-from models.invite import AttendanceList, InviteBatchResponseData, InviteCreate
-from models.shared import DTO
-from models.trip import (
-    TripParticipation,
-    TripParticipationRsvp,
+from models.invitation import (
+    AttendanceList,
+    Invitation,
+    InvitationBatchResponseData,
+    InvitationCreate,
+    InvitationRsvp,
 )
+from models.shared import DTO
 from models.user import User
 from src.api.deps import (
     SessionDep,
@@ -36,9 +38,9 @@ logger = logging.getLogger(__name__)
 def get_invited_users(trip_id: str, session: SessionDep) -> dict:
     """Return Invited Users for a trip."""
     statement = (
-        select(User, TripParticipation.rsvp)
-        .join(TripParticipation, TripParticipation.user_id == User.id)
-        .where(TripParticipation.trip_id == trip_id)
+        select(User, Invitation.rsvp)
+        .join(Invitation, Invitation.user_id == User.id)
+        .where(Invitation.trip_id == trip_id)
     )
     users = session.exec(statement).all()
     logger.info(users)
@@ -54,12 +56,12 @@ def get_invited_users(trip_id: str, session: SessionDep) -> dict:
 
 @router.post(
     "/invites",
-    response_model=DTO[InviteBatchResponseData],
+    response_model=DTO[InvitationBatchResponseData],
     dependencies=[Depends(get_current_user)],
 )
 def invite_users(
     trip_id: uuid.UUID,
-    payload: InviteCreate,
+    payload: InvitationCreate,
     session: SessionDep,
     vonage: VonageDep,
 ) -> dict:
@@ -74,7 +76,7 @@ def invite_users(
     phone_numbers_that_failed = []
     for invite in invites:
         user = session.get(User, invite.user_id)
-        participant = session.get(TripParticipation, (trip_id, invite.user_id))
+        participant = session.get(Invitation, (trip_id, invite.user_id))
         if not user:
             logger.warning("Inviting User who does not have an account yet")
             continue
@@ -91,20 +93,20 @@ def invite_users(
             phone_numbers_that_failed.append(user.phone)
         else:
             # add invited users to trips in 'pending' state
-            records.append(TripParticipation(trip_id=trip_id, **invite.model_dump()))
+            records.append(Invitation(trip_id=trip_id, **invite.model_dump()))
     if records:
         session.add_all(records)
         session.commit()
     if len(phone_numbers_that_failed) > 0:
         return {
-            "data": InviteBatchResponseData(
+            "data": InvitationBatchResponseData(
                 all_invites_processed_successfully=False,
                 sms_failures_count=len(phone_numbers_that_failed),
                 sms_phone_number_failures=phone_numbers_that_failed,
             )
         }
     return {
-        "data": InviteBatchResponseData(
+        "data": InvitationBatchResponseData(
             all_invites_processed_successfully=True,
             sms_failures_count=0,
             sms_phone_number_failures=[],
@@ -117,16 +119,14 @@ def invite_users(
     response_model=DTO[bool],
     dependencies=[Depends(get_current_user)],
 )
-def rsvp(
-    trip_id: str, user_id: UUID, res: TripParticipationRsvp, session: SessionDep
-) -> dict:
+def rsvp(trip_id: str, user_id: UUID, res: InvitationRsvp, session: SessionDep) -> dict:
     """RSVP to a trip invite."""
-    participation = session.get(TripParticipation, (trip_id, user_id))
-    resource = "participation"
-    if not participation:
+    invitation = session.get(Invitation, (trip_id, user_id))
+    resource = "invitation"
+    if not invitation:
         raise ResourceNotFoundError(resource, f"{trip_id}: {user_id}")
     rsvp = res.model_dump(exclude_unset=True)
-    updated_participation = participation.sqlmodel_update(rsvp)
-    session.add(updated_participation)
+    updated_invitation = invitation.sqlmodel_update(rsvp)
+    session.add(updated_invitation)
     session.commit()
     return {"data": True}
