@@ -92,6 +92,6 @@ class Invitation(SQLModel, table=True):
     paid: int | None = Field(default=None)
 
 
-class InvitationRsvp(ConfiguredBaseModel):
-    rsvp: str | None = None
-    paid: int | None = None
+class InvitationUpdate(ConfiguredBaseModel):
+    invite_token: str
+    rsvp: InvitationEnum

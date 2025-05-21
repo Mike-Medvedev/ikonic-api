@@ -7,26 +7,29 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
-from vonage_sms.errors import SmsError as VonageSmsError
 
-from core.exceptions import ResourceNotFoundError
+from core.exceptions import InvalidTokenError, ResourceNotFoundError
 from models.invitation import (
     AttendanceList,
     ExternalInvitee,
     Invitation,
     InvitationBatchResponseData,
     InvitationCreate,
-    InvitationRsvp,
+    InvitationEnum,
+    InvitationUpdate,
     RegisteredInvitee,
 )
 from models.shared import DTO
+from models.trip import Trip
 from models.user import User
 from src.api.deps import (
+    SecurityDep,
     SessionDep,
     VonageDep,
     get_current_user,
     send_sms_invte,
 )
+from src.core.config import settings
 
 router = APIRouter(prefix="/trips/{trip_id}", tags=["invites"])
 
@@ -81,6 +84,7 @@ def invite_users(  # noqa: PLR0912
         )
     invitations_to_create = []
     phone_numbers_that_failed = []
+    logger.critical(payload)
     for invite in payload.invitees:
         if isinstance(invite, RegisteredInvitee):
             user = session.get(User, invite.user_id)
@@ -110,8 +114,11 @@ def invite_users(  # noqa: PLR0912
                     trip_id=trip_id, invitation_id=invitation_id
                 )
                 send_sms_invte(user.phone, deep_link, vonage)
-            except VonageSmsError:
+            except Exception:
                 phone_numbers_that_failed.append(user.phone)
+                logger.exception(
+                    f"Failed to send SMS to user {user.id} at phone {user.phone}"  # noqa: G004
+                )
             else:
                 # add invited users to trips in 'pending' state
                 invitations_to_create.append(
@@ -128,9 +135,12 @@ def invite_users(  # noqa: PLR0912
                 deep_link = generate_invite_link(
                     trip_id=trip_id, invitation_id=invitation_id
                 )
-                send_sms_invte(invite.phone_number, deep_link, vonage)
-            except VonageSmsError:
+                send_sms_invte(f"+1{invite.phone_number}", deep_link, vonage)
+            except Exception:
                 phone_numbers_that_failed.append(invite.phone_number)
+                logger.exception(
+                    f"Failed to send SMS to user {user.id} at phone {user.phone}"  # noqa: G004
+                )
             else:
                 invitations_to_create.append(
                     Invitation(
@@ -160,31 +170,58 @@ def invite_users(  # noqa: PLR0912
     }
 
 
+# TODO: fix phone number comparison and fix in UI phone number validation input
 @router.patch(
-    "/invites/{user_id}",
+    "/invites",
     response_model=DTO[bool],
     dependencies=[Depends(get_current_user)],
 )
-def rsvp(trip_id: str, user_id: UUID, res: InvitationRsvp, session: SessionDep) -> dict:
+def rsvp(
+    trip_id: str,
+    user: SecurityDep,
+    invitation_update: InvitationUpdate,
+    session: SessionDep,
+) -> dict:
     """RSVP to a trip invite."""
-    invitation = session.get(Invitation, (trip_id, user_id))
-    resource = "invitation"
+    if not invitation_update.invite_token:
+        raise InvalidTokenError("Token", invitation_update.invite_token)
+
+    trip = session.get(Trip, trip_id)
+    invitation = session.get(Invitation, invitation_update.invite_token)
+
+    if not trip:
+        raise ResourceNotFoundError("Trip", trip_id)
     if not invitation:
-        raise ResourceNotFoundError(resource, f"{trip_id}: {user_id}")
-    rsvp = res.model_dump(exclude_unset=True)
-    updated_invitation = invitation.sqlmodel_update(rsvp)
-    session.add(updated_invitation)
+        raise ResourceNotFoundError("Invitation", invitation_update.invite_token)
+    if not invitation_update.rsvp:
+        raise HTTPException(403, "Missing RSVP update")
+
+    if invitation.rsvp is not InvitationEnum.PENDING or invitation.claim_user_id:
+        raise HTTPException(409, "Invitation has already been RSVP'd")
+
+    # if invitation.registered_phone and user.phone != invitation.registered_phone:
+    #     logger.info(invitation.registered_phone)  # noqa: ERA001
+    #     logger.info(user.phone)  # noqa: ERA001
+    #     raise HTTPException(403, "User is not the intended external invitee")  # noqa: ERA001
+
+    if invitation.user_id and user.id != invitation.user_id:
+        raise HTTPException(403, "User is not the intended registered invitee")
+
+    invitation.sqlmodel_update(invitation_update.model_dump(exclude={"invite_token"}))
+    invitation.claim_user_id = user.id
+    invitation.user_id = user.id
+    session.add(invitation)
     session.commit()
+
     return {"data": True}
 
 
 def generate_invite_link(trip_id: UUID, invitation_id: UUID) -> str:
     """Use urllib to create a deeplink with trip id and invite token for trip rsvp."""
-    scheme = "exp"
-    netloc = "192.168.1.20:8081"
+    scheme = settings.FRONTEND_SCHEME
+    netloc = settings.NETLOC
     path = f"/--/trips/{trip_id}/rsvp"
     query_params = {
-        "trip_id": trip_id,
         "invite_token": invitation_id,
     }
     query_string = urllib.parse.urlencode(query_params)

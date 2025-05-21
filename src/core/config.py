@@ -36,9 +36,9 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_KEY: str
 
-    FRONTEND_HOST: str = "http://localhost:5173"
-
     BACKEND_CORS_ORIGINS: str
+    FRONTEND_SCHEME: str
+    NETLOC: str
 
     API_V1_STR: str = "/api/v1"
 
