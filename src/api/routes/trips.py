@@ -36,7 +36,7 @@ def get_trips(session: SessionDep, user: SecurityDep, *, past: bool = False) -> 
 
     if past:
         today_utc = datetime.now(UTC).date()
-        final_query = base_query.where(Trip.end_date < today_utc)
+        final_query = base_query.where(Trip.start_date <= today_utc)
     else:
         final_query = base_query
 
