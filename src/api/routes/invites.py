@@ -49,14 +49,12 @@ def get_invited_users(trip_id: str, session: SessionDep) -> dict:
         .where(Invitation.trip_id == trip_id)
     )
     users = session.exec(statement).all()
-    logger.info(users)
     sorted_users = {"accepted": [], "pending": [], "uncertain": [], "declined": []}
 
     for user, rsvp in users:
         if not rsvp:
             continue
         sorted_users[rsvp].append(user)
-    logger.info(sorted_users)
     return {"data": sorted_users}
 
 
@@ -84,7 +82,6 @@ def invite_users(  # noqa: PLR0912
         )
     invitations_to_create = []
     phone_numbers_that_failed = []
-    logger.critical(payload)
     for invite in payload.invitees:
         if isinstance(invite, RegisteredInvitee):
             user = session.get(User, invite.user_id)
@@ -135,7 +132,7 @@ def invite_users(  # noqa: PLR0912
                 deep_link = generate_invite_link(
                     trip_id=trip_id, invitation_id=invitation_id
                 )
-                send_sms_invte(f"+1{invite.phone_number}", deep_link, vonage)
+                send_sms_invte(invite.phone_number, deep_link, vonage)
             except Exception:
                 phone_numbers_that_failed.append(invite.phone_number)
                 logger.exception(
@@ -185,10 +182,12 @@ def rsvp(
     """RSVP to a trip invite."""
     if not invitation_update.invite_token:
         raise InvalidTokenError("Token", invitation_update.invite_token)
-
+    current_user = session.get(User, user.id)
     trip = session.get(Trip, trip_id)
     invitation = session.get(Invitation, invitation_update.invite_token)
 
+    if not current_user:
+        raise ResourceNotFoundError("User", user.id)
     if not trip:
         raise ResourceNotFoundError("Trip", trip_id)
     if not invitation:
@@ -199,12 +198,12 @@ def rsvp(
     if invitation.rsvp is not InvitationEnum.PENDING or invitation.claim_user_id:
         raise HTTPException(409, "Invitation has already been RSVP'd")
 
-    # if invitation.registered_phone and user.phone != invitation.registered_phone:
-    #     logger.info(invitation.registered_phone)  # noqa: ERA001
-    #     logger.info(user.phone)  # noqa: ERA001
-    #     raise HTTPException(403, "User is not the intended external invitee")  # noqa: ERA001
+    if invitation.registered_phone and user.phone != invitation.registered_phone:
+        logger.info(invitation.registered_phone)
+        logger.info(user.phone)
+        raise HTTPException(403, "User is not the intended external invitee")
 
-    if invitation.user_id and user.id != invitation.user_id:
+    if invitation.user_id and current_user.id != invitation.user_id:
         raise HTTPException(403, "User is not the intended registered invitee")
 
     invitation.sqlmodel_update(invitation_update.model_dump(exclude={"invite_token"}))

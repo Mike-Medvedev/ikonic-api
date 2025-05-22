@@ -3,10 +3,12 @@
 Defines the database tables and relationships for users
 """
 
+import re
 import uuid
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from pydantic import field_validator
 from sqlalchemy import Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlmodel import Field, Relationship, SQLModel
@@ -14,6 +16,9 @@ from sqlmodel import Field, Relationship, SQLModel
 from models.friendship import Friendships, FriendshipStatus
 
 from .model_config import ConfiguredBaseModel
+
+MIN_PHONE_NUMBER_LENGTH = 10
+MAX_PHONE_NUMBER_LENGTH = 16
 
 # avoids circular dependency by importing at typechecking time. Car and Trip can regular import at runtime
 if TYPE_CHECKING:
@@ -24,6 +29,24 @@ if TYPE_CHECKING:
 class RiderType(Enum):
     SKIER = "skier"
     SNOWBOARDER = "snowboarder"
+
+
+def clean_and_validate_phone(phone: str | None) -> str | None:
+    """Clean phone number by removing non-digits and validate format."""
+    if phone is None:
+        return None
+
+    cleaned = re.sub(r"[^\d]", "", str(phone))
+
+    if not cleaned:
+        return None
+
+    if len(cleaned) < MIN_PHONE_NUMBER_LENGTH or len(cleaned) > MAX_PHONE_NUMBER_LENGTH:
+        raise ValueError(
+            f"Phone number must be between 10-15 digits, got {len(cleaned)}"
+        )
+
+    return cleaned
 
 
 class User(SQLModel, table=True):
@@ -73,6 +96,11 @@ class User(SQLModel, table=True):
             "lazy": "selectin",
         },
     )
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_phone(cls, v: str) -> str | None:
+        return clean_and_validate_phone(v)
 
     @property
     def friends_with_details(self) -> list["UserWithFriendshipInfo"]:
@@ -131,6 +159,11 @@ class UserPublic(ConfiguredBaseModel):
     is_onboarded: bool
     avatar_public_url: str | None
 
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_phone(cls, v: str) -> str | None:
+        return clean_and_validate_phone(v)
+
 
 class UserWithFriendshipInfo(ConfiguredBaseModel):
     user: UserPublic
@@ -144,3 +177,8 @@ class UserUpdate(ConfiguredBaseModel):
     username: str | None = None
     rider_type: RiderType | None = None
     avatar_storage_path: str | None = None
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_phone(cls, v: str) -> str | None:
+        return clean_and_validate_phone(v)

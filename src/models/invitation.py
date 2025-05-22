@@ -7,11 +7,12 @@ import uuid
 from enum import Enum
 from typing import Literal
 
+from pydantic import field_validator
 from sqlalchemy import Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlmodel import Field, SQLModel
 
-from models.user import UserPublic
+from models.user import UserPublic, clean_and_validate_phone
 
 from .model_config import ConfiguredBaseModel
 
@@ -24,6 +25,11 @@ class RegisteredInvitee(ConfiguredBaseModel):
 class ExternalInvitee(ConfiguredBaseModel):
     type: Literal["external"] = "external"
     phone_number: str = Field(alias="phoneNumber")
+
+    @field_validator("phone_number", mode="before")
+    @classmethod
+    def validate_phone(cls, v: str) -> str | None:
+        return clean_and_validate_phone(v)
 
 
 Invitee = RegisteredInvitee | ExternalInvitee
@@ -90,6 +96,11 @@ class Invitation(SQLModel, table=True):
         ),
     )
     paid: int | None = Field(default=None)
+
+    @field_validator("registered_phone", mode="before")
+    @classmethod
+    def validate_phone(cls, v: str) -> str | None:
+        return clean_and_validate_phone(v)
 
 
 class InvitationUpdate(ConfiguredBaseModel):
