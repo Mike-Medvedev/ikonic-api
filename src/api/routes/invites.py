@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 
 from core.exceptions import InvalidTokenError, ResourceNotFoundError
-from models.invitation import (
+from models.models import (
     AttendanceList,
     ExternalInvitee,
     Invitation,
@@ -18,10 +18,10 @@ from models.invitation import (
     InvitationEnum,
     InvitationUpdate,
     RegisteredInvitee,
+    Trip,
+    User,
 )
 from models.shared import DTO
-from models.trip import Trip
-from models.user import User
 from src.api.deps import (
     SecurityDep,
     SessionDep,

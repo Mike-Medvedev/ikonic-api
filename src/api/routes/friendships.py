@@ -8,19 +8,17 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import and_, func, or_, select
 
 from core.exceptions import ResourceNotFoundError
-from models.friendship import (
+from models.models import (
     FriendRequestType,
     FriendshipCreate,
     FriendshipPublic,
     Friendships,
     FriendshipStatus,
     FriendshipUpdate,
-)
-from models.shared import DTO
-from models.user import (
     User,
     UserWithFriendshipInfo,
 )
+from models.shared import DTO
 from src.api.deps import SecurityDep, SessionDep, get_current_user
 
 router = APIRouter(prefix="/friendships", tags=["friendships"])
@@ -109,7 +107,8 @@ def create_friend_request(
     except Exception as exc:
         session.rollback()
         logger.exception(
-            f"Database commit failed when creating friendship. Payload: requester_id={current_user_uuid}, addressee_id={addressee_uuid}"
+            "Database commit failed when creating friendship. Payload: requester_id=%(requester_id)s, addressee_id=%(addressee_id)s",
+            {"requester_id": current_user_uuid, "addressee_id": addressee_uuid},
         )
         logger.exception(
             "Original database error was:"
@@ -195,7 +194,8 @@ def respond_to_friend_request(
     #    Only the addressee can accept or reject a pending request.
     if friendship_to_update.addressee_id != uuid.UUID(user.id):
         logger.info(
-            f"Responding to friendship request: {friendship_to_update.addressee_id}, by user: {user.id}"
+            "Responding to friendship request: %(addressee_id)s, by user: %(user_id)s",
+            {"addressee_id": friendship_to_update.addressee_id, "user_id": user.id},
         )
         # This also implicitly covers the case where the requester tries to respond.
         # It also covers cases where a completely unrelated user tries to meddle.

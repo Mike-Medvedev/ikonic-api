@@ -8,7 +8,7 @@ from sqlmodel import select
 
 from api.deps import SecurityDep, SessionDep, get_current_user
 from core.exceptions import ResourceNotFoundError
-from models.car import (
+from models.models import (
     Car,
     CarCreate,
     CarPublic,

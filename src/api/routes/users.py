@@ -7,12 +7,12 @@ from fastapi import APIRouter, Depends
 from sqlmodel import select
 
 from core.exceptions import ResourceNotFoundError
-from models.shared import DTO
-from models.user import (
+from models.models import (
     User,
     UserPublic,
     UserUpdate,
 )
+from models.shared import DTO
 from src.api.deps import SecurityDep, SessionDep, get_current_user
 
 router = APIRouter(prefix="/users", tags=["users"])

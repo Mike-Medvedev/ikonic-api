@@ -9,10 +9,16 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 from core.exceptions import ResourceNotFoundError
-from models.invitation import Invitation
+from models.models import (
+    Invitation,
+    Trip,
+    TripCreate,
+    TripPublic,
+    TripUpdate,
+    User,
+    UserPublic,
+)
 from models.shared import DTO
-from models.trip import Trip, TripCreate, TripPublic, TripUpdate
-from models.user import User, UserPublic
 from src.api.deps import (
     SecurityDep,
     SessionDep,
