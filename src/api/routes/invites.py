@@ -63,7 +63,7 @@ def get_invited_users(trip_id: str, session: SessionDep) -> dict:
     response_model=DTO[InvitationBatchResponseData],
     dependencies=[Depends(get_current_user)],
 )
-def invite_users(  # noqa: PLR0912
+def invite_users(  # noqa: PLR0912, PLR0915
     trip_id: uuid.UUID,
     payload: InvitationCreate,
     session: SessionDep,
@@ -124,28 +124,72 @@ def invite_users(  # noqa: PLR0912
                     )
                 )
         elif isinstance(invite, ExternalInvitee):
-            if not invite.phone_number:
-                logger.warning("External User does not have a phone number")
-                continue
+            # manually generate invitation id so invite token can use it
             invitation_id = uuid.uuid4()
-            try:
-                deep_link = generate_invite_link(
-                    trip_id=trip_id, invitation_id=invitation_id
-                )
-                send_sms_invte(invite.phone_number, deep_link, vonage)
-            except Exception:
-                phone_numbers_that_failed.append(invite.phone_number)
-                logger.exception(
-                    f"Failed to send SMS to user {user.id} at phone {user.phone}"  # noqa: G004
-                )
-            else:
+            # Check if this phone number belongs to a registered user
+            registered_user = session.exec(
+                select(User).where(User.phone == invite.phone_number)
+            ).first()
+
+            if registered_user:
+                # Treat them as a registered user instead
+                existing_invitation = session.exec(
+                    select(Invitation).where(
+                        Invitation.trip_id == trip_id,
+                        Invitation.user_id == registered_user.id,
+                    )
+                ).first()
+
+                if existing_invitation:
+                    logger.warning(
+                        "User with phone %s already invited", invite.phone_number
+                    )
+                    continue
+
+                # Create invitation as registered user
                 invitations_to_create.append(
                     Invitation(
                         id=invitation_id,
                         trip_id=trip_id,
-                        registered_phone=invite.phone_number,
+                        user_id=registered_user.id,  # Use their user_id
                     )
                 )
+            else:
+                existing_invitation = session.exec(
+                    select(Invitation).where(
+                        Invitation.trip_id == trip_id,
+                        Invitation.registered_phone == invite.phone_number,
+                    )
+                ).first()
+
+                if existing_invitation:
+                    logger.warning(
+                        "Invitation already exists for phone %s with status: %s",
+                        invite.phone_number,
+                        existing_invitation.rsvp,
+                    )
+                    continue
+                if not invite.phone_number:
+                    logger.warning("External User does not have a phone number")
+                    continue
+                try:
+                    deep_link = generate_invite_link(
+                        trip_id=trip_id, invitation_id=invitation_id
+                    )
+                    send_sms_invte(invite.phone_number, deep_link, vonage)
+                except Exception:
+                    phone_numbers_that_failed.append(invite.phone_number)
+                    logger.exception(
+                        f"Failed to send SMS to user {user.id} at phone {user.phone}"  # noqa: G004
+                    )
+                else:
+                    invitations_to_create.append(
+                        Invitation(
+                            id=invitation_id,
+                            trip_id=trip_id,
+                            registered_phone=invite.phone_number,
+                        )
+                    )
 
     if invitations_to_create:
         session.add_all(invitations_to_create)

@@ -194,7 +194,23 @@ class InvitationBatchResponseData(ConfiguredBaseModel):
 
 class Invitation(SQLModel, table=True):
     __tablename__ = "invitations"
-    __table_args__ = {"schema": "public"}
+    __table_args__ = (
+        Index(
+            "unique_invitation_registered_user",
+            "trip_id",
+            "user_id",
+            unique=True,
+            postgresql_where=text("user_id IS NOT NULL"),
+        ),
+        Index(
+            "unique_invitation_external_user",
+            "trip_id",
+            "registered_phone",
+            unique=True,
+            postgresql_where=text("registered_phone IS NOT NULL"),
+        ),
+        {"schema": "public"},
+    )
 
     id: uuid.UUID = Field(
         primary_key=True,
