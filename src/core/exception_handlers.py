@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from core.exceptions import InvalidTokenError, ResourceNotFoundError, SmsError
+from src.core.exceptions import InvalidTokenError, ResourceNotFoundError, SmsError
 
 logger = logging.getLogger(__name__)
 

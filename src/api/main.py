@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from api.routes import cars, friendships, invites, trips, users
+from src.api.routes import cars, friendships, invites, trips, users
 
 api_router = APIRouter()
 

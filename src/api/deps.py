@@ -13,9 +13,9 @@ from supabase import Client, create_client
 from vonage import Auth, Vonage
 from vonage_sms import SmsMessage, SmsResponse
 
-from core.exceptions import InvalidTokenError
 from src.core.config import settings
 from src.core.db import engine
+from src.core.exceptions import InvalidTokenError
 
 security = HTTPBearer()
 

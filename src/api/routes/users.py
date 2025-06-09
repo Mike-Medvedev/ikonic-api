@@ -6,8 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlmodel import and_, select
 
-from core.exceptions import ResourceNotFoundError
-from models.models import (
+from src.api.deps import SecurityDep, SessionDep, get_current_user
+from src.core.exceptions import ResourceNotFoundError
+from src.models.models import (
     Invitation,
     InvitationEnum,
     InvitationPublic,
@@ -16,8 +17,7 @@ from models.models import (
     UserPublic,
     UserUpdate,
 )
-from models.shared import DTO
-from src.api.deps import SecurityDep, SessionDep, get_current_user
+from src.models.shared import DTO
 
 router = APIRouter(prefix="/users", tags=["users"])
 

@@ -6,8 +6,8 @@ from alembic import context
 from sqlmodel import SQLModel
 
 # Import your settings
-from core.config import settings 
-from models.models import User, Trip, Friendships, Invitation
+from src.core.config import settings 
+from src.models.models import User, Trip, Friendships, Invitation
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

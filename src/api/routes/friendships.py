@@ -7,8 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import selectinload
 from sqlmodel import and_, func, or_, select
 
-from core.exceptions import ResourceNotFoundError
-from models.models import (
+from src.api.deps import SecurityDep, SessionDep, get_current_user
+from src.core.exceptions import ResourceNotFoundError
+from src.models.models import (
     FriendRequestType,
     FriendshipCreate,
     FriendshipPublic,
@@ -18,8 +19,7 @@ from models.models import (
     User,
     UserWithFriendshipInfo,
 )
-from models.shared import DTO
-from src.api.deps import SecurityDep, SessionDep, get_current_user
+from src.models.shared import DTO
 
 router = APIRouter(prefix="/friendships", tags=["friendships"])
 

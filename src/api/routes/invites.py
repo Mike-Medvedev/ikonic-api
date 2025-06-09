@@ -8,8 +8,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 
-from core.exceptions import InvalidTokenError, ResourceNotFoundError
-from models.models import (
+from src.api.deps import (
+    SecurityDep,
+    SessionDep,
+    VonageDep,
+    get_current_user,
+    send_sms_invte,
+)
+from src.core.config import settings
+from src.core.exceptions import InvalidTokenError, ResourceNotFoundError
+from src.models.models import (
     AttendanceList,
     ExternalInvitee,
     Invitation,
@@ -21,15 +29,7 @@ from models.models import (
     Trip,
     User,
 )
-from models.shared import DTO
-from src.api.deps import (
-    SecurityDep,
-    SessionDep,
-    VonageDep,
-    get_current_user,
-    send_sms_invte,
-)
-from src.core.config import settings
+from src.models.shared import DTO
 
 router = APIRouter(prefix="/trips/{trip_id}", tags=["invites"])
 
@@ -152,14 +152,28 @@ def invite_users(  # noqa: PLR0912, PLR0915
                     )
                     continue
 
-                # Create invitation as registered user
-                invitations_to_create.append(
-                    Invitation(
-                        id=invitation_id,
-                        trip_id=trip_id,
-                        user_id=registered_user.id,  # Use their user_id
+                try:
+                    deep_link = generate_invite_link(
+                        trip_id=trip_id, invitation_id=invitation_id
                     )
-                )
+                    send_sms_invte(invite.phone_number, deep_link, vonage)
+                    logger.info(
+                        "Sent Text to %(number)s", {"number": invite.phone_number}
+                    )
+                except Exception:
+                    phone_numbers_that_failed.append(invite.phone_number)
+                    logger.exception(
+                        f"Failed to send SMS to user {user.id} at phone {user.phone}"  # noqa: G004
+                    )
+                else:
+                    # Create invitation as registered user
+                    invitations_to_create.append(
+                        Invitation(
+                            id=invitation_id,
+                            trip_id=trip_id,
+                            user_id=registered_user.id,  # Use their user_id
+                        )
+                    )
             else:
                 existing_invitation = session.exec(
                     select(Invitation).where(
@@ -270,7 +284,7 @@ def generate_invite_link(trip_id: UUID, invitation_id: UUID) -> str:
     """Use urllib to create a deeplink with trip id and invite token for trip rsvp."""
     scheme = settings.FRONTEND_SCHEME
     netloc = settings.NETLOC
-    path = f"/--/trips/{trip_id}/rsvp"
+    path = f"/trips/{trip_id}/rsvp"
     query_params = {
         "invite_token": invitation_id,
     }

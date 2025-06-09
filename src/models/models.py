@@ -25,7 +25,7 @@ from sqlmodel import (
     text,
 )
 
-from .model_config import ConfiguredBaseModel
+from src.models.model_config import ConfiguredBaseModel
 
 MIN_PHONE_NUMBER_LENGTH = 10
 MAX_PHONE_NUMBER_LENGTH = 16
