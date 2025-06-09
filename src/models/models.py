@@ -5,7 +5,7 @@ These models represent real world objects and what they mean to our system.
 
 import re
 import uuid
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
@@ -89,19 +89,31 @@ class Friendships(SQLModel, table=True):
         index=True,  # Good to index foreign keys
     )
 
-    status: FriendshipStatus = Field(
-        default=FriendshipStatus.PENDING,
-        sa_column=Column(
-            SQLAlchemyEnum(
-                FriendshipStatus,  # Pass your Python enum class directly
-                name="friendship_status",  # Matches your PG ENUM catalog type name
-                create_constraint=True,  # For non-native enums; for native, it might be ignored or useful
-                native_enum=True,  # Crucial for PostgreSQL to use the native ENUM type
-                values_callable=lambda obj: [
-                    e.value for e in obj
-                ],  # Ensures it uses the .value attribute
-            )
+    status: FriendshipStatus = (
+        Field(
+            default=FriendshipStatus.PENDING,
+            sa_column=Column(
+                SQLAlchemyEnum(
+                    FriendshipStatus,  # Pass your Python enum class directly
+                    name="friendship_status",  # Matches your PG ENUM catalog type name
+                    create_constraint=True,  # For non-native enums; for native, it might be ignored or useful
+                    native_enum=True,  # Crucial for PostgreSQL to use the native ENUM type
+                    values_callable=lambda obj: [
+                        e.value for e in obj
+                    ],  # Ensures it uses the .value attribute
+                )
+            ),
         ),
+    )
+    created_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now()},
+        nullable=False,
+    )
+    updated_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        nullable=False,
     )
     requester: "User" = Relationship(
         back_populates="friendships_initiated",
@@ -169,6 +181,11 @@ class InvitationEnum(str, Enum):
     PENDING = "pending"
     UNCERTAIN = "uncertain"
     DECLINED = "declined"
+
+
+class InvitationType(str, Enum):
+    INCOMING = "incoming"
+    OUTGOING = "outgoing"
 
 
 class InvitationCreate(ConfiguredBaseModel):
@@ -240,6 +257,16 @@ class Invitation(SQLModel, table=True):
         ),
     )
     paid: int | None = Field(default=None)
+    created_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now()},
+        nullable=False,
+    )
+    updated_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        nullable=False,
+    )
 
     @field_validator("registered_phone", mode="before")
     @classmethod
@@ -250,6 +277,16 @@ class Invitation(SQLModel, table=True):
 class InvitationUpdate(ConfiguredBaseModel):
     invite_token: str
     rsvp: InvitationEnum
+
+
+class InvitationPublic(ConfiguredBaseModel):
+    id: uuid.UUID
+    trip_id: uuid.UUID
+    trip_owner: str
+    trip_title: str
+    rsvp: InvitationEnum
+    recipient_id: uuid.UUID
+    created_at: datetime
 
 
 # ============================================================================
@@ -290,6 +327,16 @@ class Trip(SQLModel, table=True):
     mountain: str = Field(max_length=50, nullable=False)
     desc: str | None = Field(default=None)
     trip_image_storage_path: str | None = Field(default=None)
+    created_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now()},
+        nullable=False,
+    )
+    updated_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        nullable=False,
+    )
     owner_user: "User" = Relationship(back_populates="owned_trips")
     cars: list["Car"] = Relationship()
 
@@ -370,6 +417,16 @@ class User(SQLModel, table=True):
     )
     avatar_public_url: str | None = Field(default=None)
     avatar_storage_path: str | None = Field(default=None)
+    created_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now()},
+        nullable=False,
+    )
+    updated_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        nullable=False,
+    )
     owned_trips: list["Trip"] = Relationship(back_populates="owner_user")
     owned_cars: list["Car"] = Relationship(back_populates="owner_user")
 
@@ -517,6 +574,16 @@ class Car(SQLModel, table=True):
     trip_id: uuid.UUID = Field(
         foreign_key="public.trips.id", nullable=False, ondelete="CASCADE"
     )
+    created_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now()},
+        nullable=False,
+    )
+    updated_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        nullable=False,
+    )
     owner: uuid.UUID = Field(foreign_key="public.users.id", nullable=False)
     seat_count: int = Field(default=4, nullable=False)
     owner_user: "User" = Relationship(back_populates="owned_cars")
@@ -553,6 +620,16 @@ class Passenger(SQLModel, table=True):
     )
     seat_position: int | None = Field(default=None)
     car: "Car" = Relationship(back_populates="passengers")
+    created_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now()},
+        nullable=False,
+    )
+    updated_at: datetime = Field(
+        default=func.now(),
+        sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
+        nullable=False,
+    )
 
 
 class PassengerPublic(PassengerBase):

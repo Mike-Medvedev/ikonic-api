@@ -4,10 +4,14 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlmodel import select
+from sqlmodel import and_, select
 
 from core.exceptions import ResourceNotFoundError
 from models.models import (
+    Invitation,
+    InvitationEnum,
+    InvitationPublic,
+    Trip,
     User,
     UserPublic,
     UserUpdate,
@@ -68,11 +72,72 @@ def update_user(user_id: UUID, user: UserUpdate, session: SessionDep) -> dict:
     response_model=DTO[bool],
 )
 def complete_onboarding(user: SecurityDep, session: SessionDep) -> dict:
-    """Mark the currently authenticated user as having completed onboarding."""
+    """Mark the currently authenticated user as having completed onboarding and backfill user_id's to any pending invitations of the new user."""
     user_db = session.get(User, user.id)
     if not user_db:
         raise ResourceNotFoundError("User", user.id)
+
     user_db.is_onboarded = True
     session.add(user_db)
+
+    # Backfill user_id for any invitations sent to this user's phone number
+    if user_db.phone_number:
+        invitations_to_update = session.exec(
+            select(Invitation).where(
+                and_(
+                    Invitation.phone_number == user_db.phone_number,
+                    Invitation.user_id.is_(None),
+                )
+            )
+        ).all()
+
+        for invitation in invitations_to_update:
+            invitation.user_id = user.id
+            session.add(invitation)
+
     session.commit()
     return {"data": True}
+
+
+@router.get(
+    "/{user_id}/invites",
+    dependencies=[Depends(get_current_user)],
+    response_model=DTO[list[InvitationPublic]],
+)
+def get_invitations(
+    user_id: UUID,
+    session: SessionDep,
+) -> dict:
+    """Return incoming or outgoing invitations for a given user."""
+    user = session.get(User, user_id)
+    if not user:
+        logger.exception(
+            "Error User Not found with id %(user_id)s", {"user_id": user_id}
+        )
+        raise ResourceNotFoundError("User", user_id)
+    statement = (
+        select(Invitation, Trip, User.firstname, User.lastname)
+        .join(Trip, Invitation.trip_id == Trip.id)
+        .join(User, Trip.owner == User.id)
+        .where(
+            and_(
+                Invitation.user_id == user_id, Invitation.rsvp == InvitationEnum.PENDING
+            )
+        )
+    )
+
+    results = session.exec(statement).all()
+
+    invitations = []
+    for invitation, trip, owner_firstname, owner_lastname in results:
+        invitation_public = InvitationPublic(
+            id=invitation.id,
+            trip_id=invitation.trip_id,
+            trip_owner=f"{owner_firstname} {owner_lastname}",
+            trip_title=trip.title,
+            rsvp=invitation.rsvp,
+            recipient_id=invitation.user_id,
+            created_at=invitation.created_at,
+        )
+    invitations.append(invitation_public)
+    return {"data": invitations}
