@@ -326,7 +326,7 @@ class Trip(SQLModel, table=True):
     title: str = Field(nullable=False)
     start_date: date = Field(nullable=False)
     end_date: date = Field(nullable=False)
-    mountain: str = Field(max_length=50, nullable=False)
+    mountain: str = Field(nullable=False)
     desc: str | None = Field(default=None)
     trip_image_storage_path: str | None = Field(default=None)
     created_at: datetime = Field(

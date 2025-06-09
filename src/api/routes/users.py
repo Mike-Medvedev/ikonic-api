@@ -81,11 +81,11 @@ def complete_onboarding(user: SecurityDep, session: SessionDep) -> dict:
     session.add(user_db)
 
     # Backfill user_id for any invitations sent to this user's phone number
-    if user_db.phone_number:
+    if user_db.phone:
         invitations_to_update = session.exec(
             select(Invitation).where(
                 and_(
-                    Invitation.phone_number == user_db.phone_number,
+                    Invitation.registered_phone == user_db.phone,
                     Invitation.user_id.is_(None),
                 )
             )
