@@ -80,10 +80,16 @@ def invite_users(  # noqa: PLR0912, PLR0915
         raise HTTPException(
             status_code=400, detail="Please provide at least one user to invite."
         )
+    trip = session.get(Trip, trip_id)
+    if not trip:
+        raise ResourceNotFoundError("Trip", trip_id)
     invitations_to_create = []
     phone_numbers_that_failed = []
     for invite in payload.invitees:
         if isinstance(invite, RegisteredInvitee):
+            if trip.owner_user.id == invite.user_id:
+                logger.warning("Trip Owner tried to invite himself, skipping invite...")
+                continue
             user = session.get(User, invite.user_id)
             existing_invitation_statement = select(Invitation).where(
                 Invitation.trip_id == trip_id,
@@ -238,7 +244,8 @@ def rsvp(
         raise ResourceNotFoundError("Invitation", invitation_update.invite_token)
     if not invitation_update.rsvp:
         raise HTTPException(403, "Missing RSVP update")
-
+    if trip.owner_user.id == current_user.id:
+        raise HTTPException(409, "Owner Cannot Rsvp to his own trip")
     if invitation.rsvp is not InvitationEnum.PENDING or invitation.claim_user_id:
         raise HTTPException(409, "Invitation has already been RSVP'd")
 

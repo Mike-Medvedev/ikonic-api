@@ -15,6 +15,7 @@ from sqlalchemy import Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlmodel import (
     CheckConstraint,
+    DateTime,
     Field,
     Index,
     Relationship,
@@ -39,7 +40,7 @@ Defines the database tables and relationships for friendships
 """
 
 
-class FriendshipStatus(Enum):
+class FriendshipStatus(str, Enum):
     PENDING = "pending"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
@@ -89,29 +90,27 @@ class Friendships(SQLModel, table=True):
         index=True,  # Good to index foreign keys
     )
 
-    status: FriendshipStatus = (
-        Field(
-            default=FriendshipStatus.PENDING,
-            sa_column=Column(
-                SQLAlchemyEnum(
-                    FriendshipStatus,  # Pass your Python enum class directly
-                    name="friendship_status",  # Matches your PG ENUM catalog type name
-                    create_constraint=True,  # For non-native enums; for native, it might be ignored or useful
-                    native_enum=True,  # Crucial for PostgreSQL to use the native ENUM type
-                    values_callable=lambda obj: [
-                        e.value for e in obj
-                    ],  # Ensures it uses the .value attribute
-                )
-            ),
+    status: FriendshipStatus = Field(
+        default=FriendshipStatus.PENDING,
+        sa_column=Column(
+            SQLAlchemyEnum(
+                FriendshipStatus,
+                name="friendship_status",
+                native_enum=True,
+                create_type=False,
+                values_callable=lambda x: [e.value for e in x],
+            )
         ),
     )
     created_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now()},
         nullable=False,
     )
     updated_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
         nullable=False,
     )
@@ -139,6 +138,7 @@ class FriendshipPublic(ConfiguredBaseModel):
     requester: "UserPublic" = PydanticField(validation_alias="requester")
     addressee: "UserPublic" = PydanticField(validation_alias="addressee")
     status: FriendshipStatus
+    created_at: datetime
 
 
 class FriendshipCreate(ConfiguredBaseModel):
@@ -259,11 +259,13 @@ class Invitation(SQLModel, table=True):
     paid: int | None = Field(default=None)
     created_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now()},
         nullable=False,
     )
     updated_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
         nullable=False,
     )
@@ -329,11 +331,13 @@ class Trip(SQLModel, table=True):
     trip_image_storage_path: str | None = Field(default=None)
     created_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now()},
         nullable=False,
     )
     updated_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
         nullable=False,
     )
@@ -419,11 +423,13 @@ class User(SQLModel, table=True):
     avatar_storage_path: str | None = Field(default=None)
     created_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now()},
         nullable=False,
     )
     updated_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
         nullable=False,
     )
@@ -576,11 +582,13 @@ class Car(SQLModel, table=True):
     )
     created_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now()},
         nullable=False,
     )
     updated_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
         nullable=False,
     )
@@ -622,11 +630,13 @@ class Passenger(SQLModel, table=True):
     car: "Car" = Relationship(back_populates="passengers")
     created_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now()},
         nullable=False,
     )
     updated_at: datetime = Field(
         default=func.now(),
+        sa_type=DateTime(timezone=True),
         sa_column_kwargs={"server_default": func.now(), "onupdate": func.now()},
         nullable=False,
     )

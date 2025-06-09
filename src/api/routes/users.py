@@ -139,5 +139,5 @@ def get_invitations(
             recipient_id=invitation.user_id,
             created_at=invitation.created_at,
         )
-    invitations.append(invitation_public)
+        invitations.append(invitation_public)
     return {"data": invitations}
