@@ -41,7 +41,6 @@ def get_vonage_client() -> Vonage:
 VonageDep = Annotated[Vonage, Depends(get_vonage_client)]
 
 
-@lru_cache(maxsize=1)
 def get_supabase_client() -> Client:
     """Return Supabase client."""
     supabase: Client = create_client(
