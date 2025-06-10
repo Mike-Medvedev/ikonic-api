@@ -15,7 +15,6 @@ from src.api.deps import (
     get_current_user,
     send_sms_invte,
 )
-from src.core.config import settings
 from src.core.exceptions import InvalidTokenError, ResourceNotFoundError
 from src.models.models import (
     AttendanceList,
@@ -280,14 +279,12 @@ def rsvp(
     return {"data": True}
 
 
-def generate_invite_link(trip_id: UUID, invitation_id: UUID) -> str:
+def generate_invite_link(trip_id: str | UUID, invitation_id: str | UUID) -> str:
     """Use urllib to create a deeplink with trip id and invite token for trip rsvp."""
-    scheme = settings.FRONTEND_SCHEME
-    netloc = settings.NETLOC
-    path = f"/trips/{trip_id}/rsvp"
+    scheme = "myapp"
+    path = f"trips/{trip_id}/rsvp"
     query_params = {
-        "invite_token": invitation_id,
+        "invite_token": str(invitation_id),
     }
     query_string = urllib.parse.urlencode(query_params)
-    fragment = ""
-    return urllib.parse.urlunsplit((scheme, netloc, path, query_string, fragment))
+    return f"{scheme}:///{path}?{query_string}"
