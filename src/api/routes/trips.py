@@ -85,6 +85,7 @@ async def create_trip(trip: TripCreate, user: SecurityDep, session: SessionDep) 
     """Create a new trip and user as trip participant."""
     owner = user.id
     new_trip = Trip(**trip.model_dump(), owner=owner)
+    logger.info("Adding new trip %s", new_trip)
     session.add(new_trip)
     session.flush()
     # associate new trip with owner

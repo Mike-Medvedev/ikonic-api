@@ -305,6 +305,7 @@ class TripBase(ConfiguredBaseModel):
     start_date: date
     end_date: date
     mountain: str
+    start_time: str | None = None
     desc: str | None = None
 
 
@@ -326,6 +327,7 @@ class Trip(SQLModel, table=True):
     title: str = Field(nullable=False)
     start_date: date = Field(nullable=False)
     end_date: date = Field(nullable=False)
+    start_time: str | None = Field(default=None)
     mountain: str = Field(nullable=False)
     desc: str | None = Field(default=None)
     trip_image_storage_path: str | None = Field(default=None)
@@ -355,6 +357,7 @@ class TripUpdate(ConfiguredBaseModel):
     end_date: date | None = None
     mountain: str | None = None
     desc: str | None = None
+    start_time: str | None = None
     trip_image_storage_path: str | None = None
 
 
