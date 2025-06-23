@@ -47,7 +47,13 @@ def get_trips(session: SessionDep, user: SecurityDep, *, past: bool = False) -> 
     )
 
     trips = session.exec(query).all()
-    trips_public = [TripPublic.model_validate(trip) for trip in trips]
+    trips_public = [
+        TripPublic(
+            **trip.model_dump(exclude={"owner"}),
+            owner=trip.owner_user,
+        )
+        for trip in trips
+    ]
 
     return {"data": trips_public}
 

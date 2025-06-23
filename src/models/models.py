@@ -327,7 +327,10 @@ class Trip(SQLModel, table=True):
     title: str = Field(nullable=False)
     start_date: date = Field(nullable=False)
     end_date: date = Field(nullable=False)
-    start_time: str | None = Field(default="00:00")
+    start_time: str | None = Field(
+        default="00:00",
+        regex=r"^(?:[01]\d|2[0-3]):[0-5]\d$",  # regex to match hh:mm 24 hour time
+    )
     mountain: str = Field(nullable=False)
     desc: str | None = Field(default=None)
     trip_image_storage_path: str | None = Field(default=None)
@@ -376,11 +379,6 @@ Defines the database tables and relationships for users
 """
 
 
-class RiderType(str, Enum):
-    SKIER = "skier"
-    SNOWBOARDER = "snowboarder"
-
-
 def clean_and_validate_phone(phone: str | None) -> str | None:
     """Clean phone number by removing non-digits and validate format."""
     if phone is None:
@@ -408,20 +406,6 @@ class User(SQLModel, table=True):
     lastname: str | None = Field(default=None, max_length=30)
     username: str | None = Field(default=None, max_length=30)
     is_onboarded: bool = Field(default=False, nullable=True)
-    rider_type: RiderType | None = Field(
-        default=None,
-        sa_column=Column(
-            SQLAlchemyEnum(
-                RiderType,
-                name="rider_type",
-                create_constraint=True,
-                native_enum=True,
-                values_callable=lambda obj: [
-                    e.value for e in obj
-                ],  # Ensures it uses the .value attribute
-            )
-        ),
-    )
     avatar_public_url: str | None = Field(default=None)
     avatar_storage_path: str | None = Field(default=None)
     created_at: datetime = Field(
@@ -517,7 +501,6 @@ class UserPublic(ConfiguredBaseModel):
     firstname: str | None
     lastname: str | None
     username: str | None
-    rider_type: RiderType | None
     is_onboarded: bool
     avatar_public_url: str | None
 
@@ -537,7 +520,6 @@ class UserUpdate(ConfiguredBaseModel):
     firstname: str | None = None
     lastname: str | None = None
     username: str | None = None
-    rider_type: RiderType | None = None
     avatar_storage_path: str | None = None
 
     @field_validator("phone", mode="before")
