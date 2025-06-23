@@ -58,7 +58,8 @@ dev = [
 exclude = [
   "**/*.egg-info",
   "**/*.egg",
-  "alembic"
+  "alembic",
+  ".venv"
 ]
 
 [tool.ruff.format]

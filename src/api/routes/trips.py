@@ -33,27 +33,21 @@ logger = logging.getLogger(__name__)
 @router.get("/", response_model=DTO[list[TripPublic]])
 def get_trips(session: SessionDep, user: SecurityDep, *, past: bool = False) -> dict:
     """Return all trips for a user."""
-    base_query = (
+    today_utc = datetime.now(UTC).date()
+
+    query = (
         select(Trip)
         .join(Invitation, Trip.id == Invitation.trip_id)
         .options(selectinload(Trip.owner_user))
-        .where(Invitation.user_id == user.id)
+        .where(
+            Invitation.user_id == user.id,
+            Trip.end_date < today_utc if past else Trip.end_date >= today_utc,
+        )
+        .distinct()
     )
 
-    if past:
-        today_utc = datetime.now(UTC).date()
-        final_query = base_query.where(Trip.start_date <= today_utc)
-    else:
-        final_query = base_query.distinct()
-
-    trips = session.exec(final_query).all()
-    trips_public = [
-        TripPublic(
-            **trip.model_dump(exclude={"owner"}),
-            owner=trip.owner_user.model_dump(),
-        )
-        for trip in trips
-    ]
+    trips = session.exec(query).all()
+    trips_public = [TripPublic.model_validate(trip) for trip in trips]
 
     return {"data": trips_public}
 

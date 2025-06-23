@@ -1,7 +1,4 @@
-"""Collection of domain models and SQLAlchemy Tables.
-
-These models represent real world objects and what they mean to our system.
-"""
+"""Collection of domain models and SQLAlchemy Tables used in the system."""
 
 import re
 import uuid
@@ -57,24 +54,16 @@ class Friendships(SQLModel, table=True):
 
     __table_args__ = (
         CheckConstraint(text("requester_id <> addressee_id")),
-        # Note: PostgreSQL might auto-generate a name if you omit `name`.
-        # Providing a name ensures consistency. Your DDL implies an auto-generated name.
-        # If you want SQLModel to not specify a name, omit the `name` argument.
-        # CREATE UNIQUE INDEX unique_friendship_pair
-        # ON Friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
         Index(
             "unique_friendship_pair",
             func.least(column("requester_id"), column("addressee_id")),
-            func.greatest(
-                column("requester_id"), column("addressee_id")
-            ),  # Corrected order of args if it was swapped
+            func.greatest(column("requester_id"), column("addressee_id")),
             unique=True,
         ),
         {"schema": "public"},
     )
     id: uuid.UUID | None = Field(
         primary_key=True,
-        index=True,  # Good to index PKs
         nullable=False,
         sa_column_kwargs={"server_default": text("gen_random_uuid()")},
     )
@@ -238,21 +227,28 @@ class Invitation(SQLModel, table=True):
         foreign_key="public.trips.id", nullable=False, ondelete="CASCADE"
     )
     user_id: uuid.UUID | None = Field(
-        foreign_key="public.users.id", default=None, nullable=True, ondelete="CASCADE"
+        foreign_key="public.users.id",
+        default=None,
+        nullable=True,
+        ondelete="SET NULL",  # Better than CASCADE for optional FK
     )
-    claim_user_id: uuid.UUID | None = Field(default=None, nullable=True)
+    claim_user_id: uuid.UUID | None = Field(
+        foreign_key="public.users.id",  # Missing FK constraint!
+        default=None,
+        nullable=True,
+    )
     registered_phone: str | None = Field(default=None, nullable=True)
     rsvp: InvitationEnum | None = Field(
         default=InvitationEnum.PENDING,
         sa_column=Column(
             SQLAlchemyEnum(
-                InvitationEnum,  # Pass your Python enum class directly
-                name="invitationenum",  # Matches your PG ENUM catalog type name
-                create_constraint=True,  # For non-native enums; for native, it might be ignored or useful
-                native_enum=True,  # Crucial for PostgreSQL to use the native ENUM type
-                values_callable=lambda obj: [
-                    e.value for e in obj
-                ],  # Ensures it uses the .value attribute
+                InvitationEnum,
+                name="invitationenum",
+                create_constraint=True,
+                native_enum=True,
+                values_callable=lambda x: [
+                    e.value for e in x
+                ],  # fix sqlalchemy enum bug using the enum key not val
             )
         ),
     )
@@ -311,7 +307,11 @@ class TripBase(ConfiguredBaseModel):
 
 class Trip(SQLModel, table=True):
     __tablename__ = "trips"
-    __table_args__ = {"schema": "public"}
+    __table_args__ = (
+        CheckConstraint("start_date <= end_date", name="valid_date_range"),
+        CheckConstraint("title != ''", name="non_empty_title"),
+        {"schema": "public"},
+    )
 
     id: uuid.UUID = Field(
         default=None,
@@ -327,7 +327,7 @@ class Trip(SQLModel, table=True):
     title: str = Field(nullable=False)
     start_date: date = Field(nullable=False)
     end_date: date = Field(nullable=False)
-    start_time: str | None = Field(default=None)
+    start_time: str | None = Field(default="00:00")
     mountain: str = Field(nullable=False)
     desc: str | None = Field(default=None)
     trip_image_storage_path: str | None = Field(default=None)
@@ -376,7 +376,7 @@ Defines the database tables and relationships for users
 """
 
 
-class RiderType(Enum):
+class RiderType(str, Enum):
     SKIER = "skier"
     SNOWBOARDER = "snowboarder"
 
@@ -412,10 +412,10 @@ class User(SQLModel, table=True):
         default=None,
         sa_column=Column(
             SQLAlchemyEnum(
-                RiderType,  # Pass your Python enum class directly
-                name="rider_type",  # Matches your PG ENUM catalog type name
-                create_constraint=True,  # For non-native enums; for native, it might be ignored or useful
-                native_enum=True,  # Crucial for PostgreSQL to use the native ENUM type
+                RiderType,
+                name="rider_type",
+                create_constraint=True,
+                native_enum=True,
                 values_callable=lambda obj: [
                     e.value for e in obj
                 ],  # Ensures it uses the .value attribute
